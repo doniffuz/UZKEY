@@ -11,15 +11,43 @@ android {
         applicationId = "uz.ozkey.keyboard"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.4.0"
+        // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
+        val translateUrl = (project.findProperty("ozkeyTranslateUrl") as String?) ?: ""
+        buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
+        // Qo'shimcha til paketlari ro'yxati (ixtiyoriy): ozkeyPacksUrl=https://.../index.json
+        val packsUrl = (project.findProperty("ozkeyPacksUrl") as String?) ?: ""
+        buildConfigField("String", "PACKS_URL", "\"$packsUrl\"")
     }
+
+    // Play Market uchun imzo: CI sirlari (secrets) orqali beriladi. Berilmasa — imzosiz build.
+    signingConfigs {
+        val ks = System.getenv("OZKEY_KEYSTORE")
+        if (ks != null) {
+            create("release") {
+                storeFile = file(ks)
+                storePassword = System.getenv("OZKEY_STORE_PASSWORD")
+                keyAlias = System.getenv("OZKEY_KEY_ALIAS")
+                keyPassword = System.getenv("OZKEY_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+    }
+
+    buildFeatures { buildConfig = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }

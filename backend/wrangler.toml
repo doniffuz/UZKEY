@@ -1,0 +1,8 @@
+name = "ozkey-translate"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Kunlik limit uchun (ixtiyoriy):  wrangler kv namespace create RATE  — chiqqan id ni quyiga qo'ying va izohni oching
+# [[kv_namespaces]]
+# binding = "RATE"
+# id = "XXXXXXXX"

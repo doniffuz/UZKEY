@@ -1,10 +1,12 @@
-name: Build APK
+name: Build APK + AAB
 on:
   push:
   workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_KS: ${{ secrets.OZKEY_KEYSTORE_B64 != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -18,7 +20,21 @@ jobs:
           gradle-version: 8.9
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
+      - name: Decode keystore (ixtiyoriy)
+        if: env.HAS_KS == 'true'
+        run: echo "${{ secrets.OZKEY_KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/ozkey.jks
+      - name: Build release AAB (Play Market)
+        env:
+          OZKEY_KEYSTORE: ${{ runner.temp }}/ozkey.jks
+          OZKEY_STORE_PASSWORD: ${{ secrets.OZKEY_STORE_PASSWORD }}
+          OZKEY_KEY_ALIAS: ${{ secrets.OZKEY_KEY_ALIAS }}
+          OZKEY_KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
+        run: |
+          if [ "$HAS_KS" != "true" ]; then unset OZKEY_KEYSTORE; fi
+          gradle bundleRelease --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: OZKEY-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: OZKEY-build
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/bundle/release/*.aab

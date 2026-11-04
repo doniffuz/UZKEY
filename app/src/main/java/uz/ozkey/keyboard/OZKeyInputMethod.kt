@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 
@@ -39,8 +40,11 @@ class OZKeyInputMethod : InputMethodService() {
     private var capsLock = false
     private var drawnCaps = false
     private var lastShiftTap = 0L
-    private var language = "UZ"
-    private var neon = true
+    private var lang: Lang = Languages.UZ
+    private var target = "uz"
+    private var theme: KeyTheme = Themes.all[0]
+    private var haptic = true
+    private var emojiCat = 0
     private var scale = 100
     private var translating = false
     private var pendingUndo: String? = null
@@ -51,7 +55,7 @@ class OZKeyInputMethod : InputMethodService() {
     private var animator: ValueAnimator? = null
     private var frame = 0
 
-    private val toolKeys = listOf("TR", "CONV", "COPY", "SET")
+    private val toolKeys = listOf("TR", "TGT", "CONV", "COPY", "SET")
     private val specials = setOf("⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space") + toolKeys
     private val apostrophes = setOf("'", "’", "‘", "ʻ", "ʼ", "＇")
 
@@ -61,13 +65,6 @@ class OZKeyInputMethod : InputMethodService() {
             handler.postDelayed(this, 55)
         }
     }
-
-    private val emojiRows = listOf(
-        listOf("😀", "😂", "🥰", "😍", "😎", "🤔", "😢", "😡"),
-        listOf("👍", "👏", "🙏", "💪", "🔥", "❤️", "💔", "🎉"),
-        listOf("😊", "😁", "😉", "😘", "🤝", "👌", "✌️", "🙌"),
-        listOf("🌹", "⭐", "☀️", "🌙", "🎁", "💯", "✅", "❌")
-    )
 
     private val digits = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     private val bottomRow = listOf("?123", "🌐", "😊", ",", "space", ".", "↵")
@@ -80,35 +77,26 @@ class OZKeyInputMethod : InputMethodService() {
             listOf("_", "=", "<", ">", "[", "]", "{", "}", "\\", "|"),
             listOf("ABC", "🌐", ",", "space", ".", "↵")
         )
-        Layer.EMOJI -> emojiRows + listOf(listOf("ABC", "space", "⌫"))
-        Layer.LETTERS -> listOf(toolKeys) + when (language) {
-            "RU" -> listOf(
-                digits,
-                listOf("й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х"),
-                listOf("ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э"),
-                listOf("⇧", "я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "⌫"),
-                listOf("ё", "ъ", "-", "!", "?"),
-                bottomRow
-            )
-            "EN" -> latin(listOf("'", "-", "!", "?", "@"))
-            else -> latin(listOf("Ğ", "Ö", "Ş", "Ç", "'"))
+        Layer.EMOJI -> emptyList()   // renderEmoji() chizadi
+        Layer.LETTERS -> {
+            val r = lang.rows
+            listOf(toolKeys, digits, r.getOrElse(0) { emptyList() }, r.getOrElse(1) { emptyList() },
+                listOf("⇧") + r.getOrElse(2) { emptyList() } + listOf("⌫")) +
+                (if (lang.extra.isNotEmpty()) listOf(lang.extra) else emptyList()) + listOf(bottomRow)
         }
     }
-
-    private fun latin(extra: List<String>) = listOf(
-        digits,
-        listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p"),
-        listOf("a", "s", "d", "f", "g", "h", "j", "k", "l"),
-        listOf("⇧", "z", "x", "c", "v", "b", "n", "m", "⌫"),
-        extra,
-        bottomRow
-    )
 
     private fun prefs() = getSharedPreferences("ozkey", MODE_PRIVATE)
 
     private fun loadPrefs() {
-        neon = prefs().getBoolean("neon", true)
+        theme = Themes.byId(prefs().getString("theme", "neon")).let {
+            if (it.premium && !Premium.isPremium(this)) Themes.all[0] else it
+        }
         scale = prefs().getInt("scale", 100).coerceIn(80, 140)
+        haptic = prefs().getBoolean("haptic", true)
+        target = prefs().getString("target", "uz") ?: "uz"
+        val code = prefs().getString("lang", "UZ")
+        lang = Languages.active(this).firstOrNull { it.code == code } ?: Languages.UZ
     }
 
     override fun onCreate() {
@@ -147,62 +135,86 @@ class OZKeyInputMethod : InputMethodService() {
         drawnCaps = caps
         keyboard.removeAllViews()
         keyViews.clear()
-        keyboard.setBackgroundColor(if (neon) Color.rgb(8, 10, 22) else Color.rgb(225, 230, 240))
-        currentRows().forEach { row ->
-            val rowLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            row.forEach { key ->
-                val weight = when (key) {
-                    "space" -> if (layer == Layer.EMOJI) 4f else 3.2f
-                    "?123", "ABC" -> 1.5f
-                    "⇧", "⌫", "↵", "🌐", "😊" -> 1.35f
-                    "SET" -> 0.7f
-                    "CONV" -> 1.4f
-                    else -> 1f
-                }
-                rowLayout.addView(makeKey(key), LinearLayout.LayoutParams(0, dp(rowHeightDp(row)), weight))
-            }
-            keyboard.addView(rowLayout, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ))
+        keyboard.background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(theme.bgTop, theme.bgBottom)
+        )
+        if (layer == Layer.EMOJI) renderEmoji() else {
+            currentRows().forEach { row -> keyboard.addView(buildRow(row, rowHeightDp(row))) }
         }
         startGlow()
     }
 
-    private fun labelFor(key: String): String = when (key) {
-        "space" -> when (language) { "EN" -> "English"; "RU" -> "Русский"; else -> "ÖZKEY" }
-        "TR" -> if (translating) "…" else "→ UZ"
-        "CONV" -> "ÖZ⇄std"
-        "COPY" -> "Nusxa"
-        "SET" -> "⚙"
-        "⇧" -> if (capsLock) "⇪" else "⇧"
+    private fun weightOf(key: String) = when {
+        key == "space" -> if (layer == Layer.EMOJI) 4f else 3.2f
+        key == "?123" || key == "ABC" -> 1.5f
+        key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
+        key == "SET" -> 0.7f
+        key == "CONV" || key == "TR" -> 1.3f
+        else -> 1f
+    }
+
+    private fun buildRow(row: List<String>, heightDp: Int): LinearLayout {
+        val rowLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        row.forEach { key -> rowLayout.addView(makeKey(key), LinearLayout.LayoutParams(0, dp(heightDp), weightOf(key))) }
+        return rowLayout
+    }
+
+    private fun renderEmoji() {
+        val cats = EmojiData.categories
+        keyboard.addView(buildRow(cats.indices.map { "cat:$it" }, (40 * scale / 100f).toInt()))
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val h = (46 * scale / 100f).toInt()
+        cats[emojiCat].second.chunked(8).forEach { chunk ->
+            val padded = chunk.map { "emo:$it" } + List(8 - chunk.size) { "pad" }
+            grid.addView(buildRow(padded, h))
+        }
+        keyboard.addView(
+            ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(grid) },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(h * 4))
+        )
+        keyboard.addView(buildRow(listOf("ABC", "space", "⌫"), h))
+    }
+
+    private fun labelFor(key: String): String = when {
+        key == "space" -> lang.space
+        key == "TR" -> if (translating) "…" else "→ " + Translator.label(target)
+        key == "TGT" -> "🌍"
+        key == "CONV" -> "ÖZ⇄std"
+        key == "COPY" -> "Nusxa"
+        key == "SET" -> "⚙"
+        key == "⇧" -> if (capsLock) "⇪" else "⇧"
+        key.startsWith("cat:") -> EmojiData.categories[key.substring(4).toInt()].first
+        key.startsWith("emo:") -> key.substring(4)
+        key == "pad" -> ""
         else -> if (key.length <= 2 && key.any { it.isLetter() } && caps) key.uppercase() else key
     }
 
     private fun makeKey(key: String): View {
-        val special = key in specials
+        if (key == "pad") return View(this)
+        val special = key in specials || key.startsWith("cat:")
+        val isEmo = key.startsWith("emo:") || key.startsWith("cat:")
         val bg = GradientDrawable().apply {
             cornerRadius = dp(10).toFloat()
-            if (neon) {
-                setColor(if (special) Color.rgb(28, 30, 56) else Color.rgb(16, 18, 36))
-                setStroke(dp(2), Color.rgb(0, 229, 255))
-            } else {
-                setColor(if (special) Color.rgb(200, 208, 226) else Color.WHITE)
-            }
+            setColor(if (special) theme.special else theme.key)
+            if (theme.stroke != 0) setStroke(dp(2), theme.stroke)
         }
         val label = TextView(this).apply {
             text = labelFor(key)
             textSize = when {
+                isEmo -> 24f
                 key in toolKeys -> 12f
                 key == "space" || key in specials -> 14f
-                layer == Layer.EMOJI -> 24f
                 else -> 20f
             }
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextColor(if (neon) Color.rgb(0, 229, 255) else Color.rgb(25, 34, 52))
+            setTextColor(theme.text)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             background = bg
         }
@@ -212,22 +224,37 @@ class OZKeyInputMethod : InputMethodService() {
             addView(label, FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
+        // Emoji ro'yxati aylantirilganda tasodifiy bosilmasin: tugma ACTION_UP da ishlaydi.
+        val onUp = isEmo
+        var downX = 0f
+        var downY = 0f
+        var moved = false
         cell.setOnTouchListener { v, e ->
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    downX = e.rawX; downY = e.rawY; moved = false
                     label.alpha = 0.5f
-                    v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (key == "⌫") { doBackspace(); handler.postDelayed(repeatDelete, 400) }
+                    if (haptic) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (onUp) { /* ACTION_UP da */ }
+                    else if (key == "⌫") { doBackspace(); handler.postDelayed(repeatDelete, 400) }
                     else handleKey(key)
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_MOVE -> {
+                    if (Math.abs(e.rawY - downY) > dp(10) || Math.abs(e.rawX - downX) > dp(10)) moved = true
+                }
+                MotionEvent.ACTION_UP -> {
+                    label.alpha = 1f
+                    handler.removeCallbacks(repeatDelete)
+                    if (onUp && !moved) handleKey(key)
+                }
+                MotionEvent.ACTION_CANCEL -> {
                     label.alpha = 1f
                     handler.removeCallbacks(repeatDelete)
                 }
             }
             true
         }
-        keyViews.add(Pair(label, bg))
+        if (!isEmo) keyViews.add(Pair(label, bg))
         return cell
     }
 
@@ -237,7 +264,7 @@ class OZKeyInputMethod : InputMethodService() {
     private fun startGlow() {
         animator?.cancel()
         animator = null
-        if (!neon || !::keyboard.isInitialized) return
+        if (!theme.rainbow || !::keyboard.isInitialized) return
         animator = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = 8000
             repeatCount = ValueAnimator.INFINITE
@@ -300,7 +327,7 @@ class OZKeyInputMethod : InputMethodService() {
         render()
         val key = prefs().getString("apikey", "") ?: ""
         Thread {
-            val result = try { Result.success(Translator.toUzbek(g.text, key)) }
+            val result = try { Result.success(Translator.translate(g.text, target, key)) }
             catch (e: Exception) { Result.failure<String>(e) }
             handler.post {
                 translating = false
@@ -319,7 +346,12 @@ class OZKeyInputMethod : InputMethodService() {
     private fun doConvert(ic: InputConnection) {
         if (isRawField()) return
         val g = grabText(ic) ?: run { toast("Avval matn yozing yoki belgilang"); return }
-        val out = if (Alphabet.hasNew(g.text)) Alphabet.toStandard(g.text) else Alphabet.toNew(g.text)
+        val hasCyr = g.text.any { it in '\u0400'..'\u04FF' }
+        val out = when {
+            hasCyr -> Alphabet.toNew(Script.cyrToLat(g.text))     // kirill -> ÖZ lotin
+            Alphabet.hasNew(g.text) -> Alphabet.toStandard(g.text)
+            else -> Alphabet.toNew(g.text)
+        }
         if (out != g.text) replaceText(ic, g, out)
     }
 
@@ -383,7 +415,10 @@ class OZKeyInputMethod : InputMethodService() {
             }
             "space" -> { ic.commitText(" ", 1); syncCaps() }
             "🌐" -> {
-                language = when (language) { "UZ" -> "EN"; "EN" -> "RU"; else -> "UZ" }
+                val all = Languages.active(this)
+                val i = all.indexOfFirst { it.code == lang.code }
+                lang = all[(i + 1) % all.size]
+                prefs().edit().putString("lang", lang.code).apply()
                 caps = false; capsLock = false
                 layer = Layer.LETTERS
                 render()
@@ -393,13 +428,24 @@ class OZKeyInputMethod : InputMethodService() {
             "ABC" -> { layer = Layer.LETTERS; render(); syncCaps() }
             "😊" -> { layer = Layer.EMOJI; render() }
             "TR" -> doTranslate(ic)
+            "TGT" -> {
+                val t = Translator.targets
+                target = t[(t.indexOf(target) + 1) % t.size]
+                prefs().edit().putString("target", target).apply()
+                toast("Tarjima tili: " + when (target) { "uz" -> "O'zbekcha (lotin)"; "uz-cyr" -> "Ўзбекча (кирилл)"; "ru" -> "Русский"; else -> "English" })
+                render()
+            }
             "CONV" -> doConvert(ic)
             "COPY" -> doCopyStandard(ic)
             "SET" -> startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            else -> {
+            else -> if (key.startsWith("cat:")) {
+                emojiCat = key.substring(4).toInt(); render()
+            } else if (key.startsWith("emo:")) {
+                ic.commitText(key.substring(4), 1)
+            } else {
                 val value = if (caps && key.any { it.isLetter() }) key.uppercase() else key
                 ic.commitText(value, 1)
-                if (language == "UZ" && !isRawField()) convertDigraph()
+                if (lang.uzDigraph && !isRawField()) convertDigraph()
                 if (!capsLock) caps = false
                 syncCaps()
                 if (caps != drawnCaps) render()
