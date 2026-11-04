@@ -1,4 +1,4 @@
-# O'ZKEY Android — MVP 0.1.0
+# O'ZKEY Android — 0.3.0
 
 Native Android keyboard prototype built with Kotlin and `InputMethodService`.
 
@@ -22,3 +22,13 @@ Native Android keyboard prototype built with Kotlin and `InputMethodService`.
 - The base G and O letters remain available; Ğ, Ö, Ş, Ç are added as separate one-tap keys. Numeric/symbol page, full language layouts, preferences, suggestions, themes, accessibility polish, and expanded testing are next milestones.
 - The new Uzbek alphabet rules should be confirmed against the official standard before release.
 - Always test with non-sensitive sample text first. Android may switch IMEs for password fields.
+
+## 0.3.0 yangiliklari
+- Ruxsat avtomatik: kalit yoqilmagan bo'lsa sozlamalar o'zi ochiladi, qaytganda tanlash oynasi chiqadi
+- Katta/kichik harf: bir marta bosish = bitta katta harf, ikki marta = CAPS LOCK, gap boshida avto-katta harf
+- Sozlamalar: klaviatura balandligi (80–140%), neon/oddiy mavzu
+- Tarjima («→ UZ»): rus/ingliz → o'zbekcha, natija yangi alifboda (Claude API kaliti ixtiyoriy)
+- «ÖZ⇄std» va «Nusxa»: Ş Ç Ğ Ö ⇄ sh ch gʻ oʻ (oddiy klaviaturada ko'rinadigan variant)
+- ş→sh almashtirishni ⌫ bilan bekor qilish; parol/email/URL maydonlarida almashtirish o'chiq
+- Android 15 pastki panel muammosi, Enter tugmasi, belgilar sahifasi, batareya sarfi tuzatildi
+- INTERNET ruxsati faqat tarjima uchun qo'shildi
