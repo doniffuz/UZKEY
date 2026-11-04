@@ -31,7 +31,7 @@ import android.widget.Toast
 
 class OZKeyInputMethod : InputMethodService() {
 
-    private enum class Layer { LETTERS, SYMBOLS, EMOJI }
+    private enum class Layer { LETTERS, SYMBOLS, EMOJI, TOOLS, PHRASES }
 
     private class Grabbed(val text: String, val hadSelection: Boolean, val before: Int, val after: Int)
 
@@ -44,10 +44,17 @@ class OZKeyInputMethod : InputMethodService() {
     private var target = "uz"
     private var theme: KeyTheme = Themes.all[0]
     private var haptic = true
+    private var oneHand = false
     private var emojiCat = 0
     private var scale = 100
     private var translating = false
     private var pendingUndo: String? = null
+    private var navBottom = 0
+
+    // Tarjima paneli: yozilgan matn ilovaga emas, shu yerga tushadi
+    private var trMode = false
+    private val trBuf = StringBuilder()
+    private var trView: TextView? = null
 
     private lateinit var keyboard: LinearLayout
     private val handler = Handler(Looper.getMainLooper())
@@ -55,8 +62,16 @@ class OZKeyInputMethod : InputMethodService() {
     private var animator: ValueAnimator? = null
     private var frame = 0
 
-    private val toolKeys = listOf("TR", "TGT", "CONV", "COPY", "SET")
-    private val specials = setOf("⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space") + toolKeys
+    private val topBar = listOf("LANGLAT", "LANGCYR", "sp", "😊", "TOOLS", "HIDE")
+    private val tileKeys = listOf(
+        "t:TR", "t:FIELD", "t:CLIP", "t:PHR",
+        "t:CONV", "t:COPY", "t:THEME", "t:NIGHT",
+        "t:HAPTIC", "t:ONE", "t:TGT", "t:SET"
+    )
+    private val specials = setOf(
+        "⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space",
+        "LANGLAT", "LANGCYR", "TOOLS", "HIDE", "tsrc", "ttgt", "tx", "tok"
+    )
     private val apostrophes = setOf("'", "’", "‘", "ʻ", "ʼ", "＇")
 
     private val repeatDelete = object : Runnable {
@@ -69,22 +84,26 @@ class OZKeyInputMethod : InputMethodService() {
     private val digits = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     private val bottomRow = listOf("?123", "🌐", "😊", ",", "space", ".", "↵")
 
-    private fun currentRows(): List<List<String>> = when (layer) {
-        Layer.SYMBOLS -> listOf(
+    private fun isScrollKey(k: String) = k.startsWith("emo:") || k.startsWith("ph:")
+    private fun isSpecialKey(k: String) = k in specials || k.startsWith("cat:") || k.startsWith("t:")
+
+    private fun lettersRows(): List<List<String>> {
+        val r = lang.rows
+        return listOf(
             digits,
-            listOf("@", "#", "\$", "%", "&", "-", "+", "(", ")", "/"),
-            listOf("*", "\"", "'", ":", ";", "!", "?", "~", "⌫"),
-            listOf("_", "=", "<", ">", "[", "]", "{", "}", "\\", "|"),
-            listOf("ABC", "🌐", ",", "space", ".", "↵")
-        )
-        Layer.EMOJI -> emptyList()   // renderEmoji() chizadi
-        Layer.LETTERS -> {
-            val r = lang.rows
-            listOf(toolKeys, digits, r.getOrElse(0) { emptyList() }, r.getOrElse(1) { emptyList() },
-                listOf("⇧") + r.getOrElse(2) { emptyList() } + listOf("⌫")) +
-                (if (lang.extra.isNotEmpty()) listOf(lang.extra) else emptyList()) + listOf(bottomRow)
-        }
+            r.getOrElse(0) { emptyList() },
+            r.getOrElse(1) { emptyList() },
+            listOf("⇧") + r.getOrElse(2) { emptyList() } + listOf("⌫")
+        ) + (if (lang.extra.isNotEmpty()) listOf(lang.extra) else emptyList()) + listOf(bottomRow)
     }
+
+    private fun symbolRows(): List<List<String>> = listOf(
+        digits,
+        listOf("@", "#", "\$", "%", "&", "-", "+", "(", ")", "/"),
+        listOf("*", "\"", "'", ":", ";", "!", "?", "~", "⌫"),
+        listOf("_", "=", "<", ">", "[", "]", "{", "}", "\\", "|"),
+        listOf("ABC", "🌐", ",", "space", ".", "↵")
+    )
 
     private fun prefs() = getSharedPreferences("ozkey", MODE_PRIVATE)
 
@@ -94,6 +113,7 @@ class OZKeyInputMethod : InputMethodService() {
         }
         scale = prefs().getInt("scale", 100).coerceIn(80, 140)
         haptic = prefs().getBoolean("haptic", true)
+        oneHand = prefs().getBoolean("onehand", false)
         target = prefs().getString("target", "uz") ?: "uz"
         val code = prefs().getString("lang", "UZ")
         lang = Languages.active(this).firstOrNull { it.code == code } ?: Languages.UZ
@@ -104,26 +124,31 @@ class OZKeyInputMethod : InputMethodService() {
         loadPrefs()
     }
 
+    private fun applyPad() {
+        val extra = if (oneHand) (resources.displayMetrics.widthPixels * 0.25f).toInt() else 0
+        keyboard.setPadding(dp(4), dp(6), dp(4) + extra, dp(6) + navBottom)
+    }
+
     override fun onCreateInputView(): View {
         keyboard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(6), dp(4), dp(6))
             // Android 15+: pastki navigatsiya paneli klaviaturani yopib qo'ymasin
             if (Build.VERSION.SDK_INT >= 35) {
-                setOnApplyWindowInsetsListener { v, insets ->
-                    val bottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-                    v.setPadding(dp(4), dp(6), dp(4), dp(6) + bottom)
+                setOnApplyWindowInsetsListener { _, insets ->
+                    navBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+                    applyPad()
                     insets
                 }
             }
         }
+        applyPad()
         render()
         return keyboard
     }
 
     private fun rowHeightDp(row: List<String>): Int {
         val base = when {
-            row === toolKeys -> 34
+            row === topBar -> 34
             layer == Layer.LETTERS && row === digits -> 40
             else -> 48
         }
@@ -133,23 +158,33 @@ class OZKeyInputMethod : InputMethodService() {
     private fun render() {
         if (!::keyboard.isInitialized) return
         drawnCaps = caps
+        trView = null
         keyboard.removeAllViews()
         keyViews.clear()
         keyboard.background = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(theme.bgTop, theme.bgBottom)
         )
-        if (layer == Layer.EMOJI) renderEmoji() else {
-            currentRows().forEach { row -> keyboard.addView(buildRow(row, rowHeightDp(row))) }
+        when (layer) {
+            Layer.EMOJI -> renderEmoji()
+            Layer.TOOLS -> renderTools()
+            Layer.PHRASES -> renderPhrases()
+            Layer.SYMBOLS -> symbolRows().forEach { keyboard.addView(buildRow(it, rowHeightDp(it))) }
+            Layer.LETTERS -> {
+                if (trMode) keyboard.addView(translateHeader())
+                else keyboard.addView(buildRow(topBar, rowHeightDp(topBar)))
+                lettersRows().forEach { keyboard.addView(buildRow(it, rowHeightDp(it))) }
+            }
         }
         startGlow()
     }
 
     private fun weightOf(key: String) = when {
-        key == "space" -> if (layer == Layer.EMOJI) 4f else 3.2f
+        key == "space" -> if (layer == Layer.EMOJI || layer == Layer.TOOLS || layer == Layer.PHRASES) 4f else 3.2f
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
-        key == "SET" -> 0.7f
-        key == "CONV" || key == "TR" -> 1.3f
+        key == "sp" -> 2.5f
+        key == "tsrc" || key == "ttgt" -> 2f
+        key == "tx" -> 0.8f
         else -> 1f
     }
 
@@ -165,6 +200,8 @@ class OZKeyInputMethod : InputMethodService() {
         return rowLayout
     }
 
+    private fun bottomBarRow() = buildRow(listOf("ABC", "space", "⌫"), (46 * scale / 100f).toInt())
+
     private fun renderEmoji() {
         val cats = EmojiData.categories
         keyboard.addView(buildRow(cats.indices.map { "cat:$it" }, (40 * scale / 100f).toInt()))
@@ -178,27 +215,114 @@ class OZKeyInputMethod : InputMethodService() {
             ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(grid) },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(h * 4))
         )
-        keyboard.addView(buildRow(listOf("ABC", "space", "⌫"), h))
+        keyboard.addView(bottomBarRow())
+    }
+
+    private fun renderTools() {
+        val h = (66 * scale / 100f).toInt()
+        tileKeys.chunked(4).forEach { keyboard.addView(buildRow(it, h)) }
+        keyboard.addView(bottomBarRow())
+    }
+
+    /** Tez ishlatiladigan iboralar (tanlangan yozuvga moslab). */
+    private fun phrases(): List<String> {
+        val base = listOf(
+            "Assalomu alaykum", "Va alaykum assalom", "Rahmat", "Iltimos", "Xayrli tong", "Xayrli kech",
+            "Yaxshimisiz?", "Hozir bandman, keyin yozaman", "Kechirasiz", "Xayr, ko'rishguncha",
+            "Bayramingiz muborak bo'lsin!", "Yo'ldaman", "Mayli, bo'ladi", "Telefon qiling", "Raqamingizni bering"
+        )
+        return when (lang.code) {
+            "UZC" -> base.map { Script.latToCyr(it) }
+            else -> base.map { Alphabet.toNew(it) }
+        }
+    }
+
+    private fun renderPhrases() {
+        val h = (48 * scale / 100f).toInt()
+        val list = phrases()
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.indices.map { "ph:$it" }.chunked(2).forEach { chunk ->
+            grid.addView(buildRow(if (chunk.size == 1) chunk + "pad" else chunk, h))
+        }
+        keyboard.addView(
+            ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(grid) },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(h * 5))
+        )
+        keyboard.addView(bottomBarRow())
+    }
+
+    private fun targetName(t: String) = when (t) {
+        "uz" -> "O'zbekcha"; "uz-cyr" -> "Ўзбекча"; "ru" -> "Русский"; else -> "English"
+    }
+
+    private fun bufferText() = if (trBuf.isEmpty()) "Matnni kiriting" else trBuf.toString()
+
+    private fun refreshBuf() {
+        trView?.let { it.text = bufferText(); it.alpha = if (trBuf.isEmpty()) 0.55f else 1f }
+    }
+
+    private fun translateHeader(): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(buildRow(listOf("tsrc", "ttgt", "tx"), (40 * scale / 100f).toInt()))
+        val h = (48 * scale / 100f).toInt()
+        val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val tv = TextView(this).apply {
+            text = bufferText()
+            alpha = if (trBuf.isEmpty()) 0.55f else 1f
+            textSize = 17f
+            maxLines = 2
+            setTextColor(theme.text)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply { setColor(theme.special); cornerRadius = dp(12).toFloat() }
+        }
+        trView = tv
+        row.addView(tv, LinearLayout.LayoutParams(0, dp(h), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+        row.addView(makeKey("tok"), LinearLayout.LayoutParams(dp(68), dp(h)))
+        box.addView(row)
+        return box
+    }
+
+    private fun tileLabel(key: String): String = when (key) {
+        "t:TR" -> "🌍\nTarjima"
+        "t:FIELD" -> "📝\nMaydonni\ntarjima"
+        "t:CLIP" -> "📋\nBufer"
+        "t:PHR" -> "💬\nIboralar"
+        "t:CONV" -> "🔄\nLotin⇄Kirill"
+        "t:COPY" -> "📄\nOddiy yozuvda\nnusxa"
+        "t:THEME" -> "🎨\nMavzu"
+        "t:NIGHT" -> "🌙\nTungi rejim"
+        "t:HAPTIC" -> "📳\nTebranish: " + if (haptic) "ON" else "OFF"
+        "t:ONE" -> "👍\nBir qo'l: " + if (oneHand) "ON" else "OFF"
+        "t:TGT" -> "🎯\nTarjima tili:\n" + targetName(target)
+        else -> "⚙️\nSozlamalar"
     }
 
     private fun labelFor(key: String): String = when {
         key == "space" -> lang.space
-        key == "TR" -> if (translating) "…" else "→ " + Translator.label(target)
-        key == "TGT" -> "🌍"
-        key == "CONV" -> "ÖZ⇄std"
-        key == "COPY" -> "Nusxa"
-        key == "SET" -> "⚙"
+        key == "LANGLAT" -> "O'z"
+        key == "LANGCYR" -> "Ўз"
+        key == "TOOLS" -> "⚙"
+        key == "HIDE" -> "⌄"
+        key == "tsrc" -> "Avto-aniqlash"
+        key == "ttgt" -> targetName(target) + " ▾"
+        key == "tx" -> "✕"
+        key == "tok" -> "✓"
         key == "⇧" -> if (capsLock) "⇪" else "⇧"
+        key.startsWith("t:") -> tileLabel(key)
         key.startsWith("cat:") -> EmojiData.categories[key.substring(4).toInt()].first
         key.startsWith("emo:") -> key.substring(4)
+        key.startsWith("ph:") -> phrases().getOrElse(key.substring(3).toInt()) { "" }
         key == "pad" -> ""
         else -> if (key.length <= 2 && key.any { it.isLetter() } && caps) key.uppercase() else key
     }
 
     private fun makeKey(key: String): View {
-        if (key == "pad") return View(this)
-        val special = key in specials || key.startsWith("cat:")
-        val isEmo = key.startsWith("emo:") || key.startsWith("cat:")
+        if (key == "pad" || key == "sp") return View(this)
+        val special = isSpecialKey(key)
+        val scrollish = isScrollKey(key) || key.startsWith("cat:")
+        val langKey = key == "LANGLAT" || key == "LANGCYR"
+        val activeLang = (key == "LANGLAT" && lang.code == "UZ") || (key == "LANGCYR" && lang.code == "UZC")
         val bg = GradientDrawable().apply {
             cornerRadius = dp(10).toFloat()
             setColor(if (special) theme.special else theme.key)
@@ -207,15 +331,20 @@ class OZKeyInputMethod : InputMethodService() {
         val label = TextView(this).apply {
             text = labelFor(key)
             textSize = when {
-                isEmo -> 24f
-                key in toolKeys -> 12f
-                key == "space" || key in specials -> 14f
+                key.startsWith("emo:") || key.startsWith("cat:") -> 24f
+                key.startsWith("t:") -> 11.5f
+                key.startsWith("ph:") -> 14f
+                langKey -> 16f
+                key == "TOOLS" || key == "HIDE" -> 18f
+                key == "tsrc" || key == "ttgt" -> 14f
+                key == "space" || special -> 14f
                 else -> 20f
             }
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextColor(theme.text)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            if (key.startsWith("t:") || key.startsWith("ph:")) { maxLines = 3 }
+            setTextColor(if (langKey && !activeLang) Color.argb(130, Color.red(theme.text), Color.green(theme.text), Color.blue(theme.text)) else theme.text)
+            typeface = Typeface.create(if (activeLang) "sans-serif-black" else "sans-serif-medium", Typeface.NORMAL)
             background = bg
         }
         // Butun katak (oraliqlar ham) bosiladi — "o'lik zona" yo'q.
@@ -224,8 +353,7 @@ class OZKeyInputMethod : InputMethodService() {
             addView(label, FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
-        // Emoji ro'yxati aylantirilganda tasodifiy bosilmasin: tugma ACTION_UP da ishlaydi.
-        val onUp = isEmo
+        // Aylantiriladigan ro'yxatlarda tasodifiy bosilmasin: tugma ACTION_UP da ishlaydi.
         var downX = 0f
         var downY = 0f
         var moved = false
@@ -235,7 +363,7 @@ class OZKeyInputMethod : InputMethodService() {
                     downX = e.rawX; downY = e.rawY; moved = false
                     label.alpha = 0.5f
                     if (haptic) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (onUp) { /* ACTION_UP da */ }
+                    if (scrollish) { /* ACTION_UP da */ }
                     else if (key == "⌫") { doBackspace(); handler.postDelayed(repeatDelete, 400) }
                     else handleKey(key)
                 }
@@ -245,7 +373,7 @@ class OZKeyInputMethod : InputMethodService() {
                 MotionEvent.ACTION_UP -> {
                     label.alpha = 1f
                     handler.removeCallbacks(repeatDelete)
-                    if (onUp && !moved) handleKey(key)
+                    if (scrollish && !moved) handleKey(key)
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     label.alpha = 1f
@@ -254,7 +382,7 @@ class OZKeyInputMethod : InputMethodService() {
             }
             true
         }
-        if (!isEmo) keyViews.add(Pair(label, bg))
+        if (!scrollish && !langKey && !key.startsWith("t:")) keyViews.add(Pair(label, bg))
         return cell
     }
 
@@ -367,6 +495,7 @@ class OZKeyInputMethod : InputMethodService() {
     // ---------- tugmalar ----------
 
     private fun doBackspace() {
+        if (trMode) { backspaceBuf(); return }
         val ic = currentInputConnection ?: return
         val undo = pendingUndo
         if (undo != null) {            // ş -> sh kabi avtomatik almashtirishni bekor qilish
@@ -381,7 +510,7 @@ class OZKeyInputMethod : InputMethodService() {
 
     /** Boshlang'ich katta harf (gap boshi) holatini sozlaydi. */
     private fun syncCaps() {
-        if (capsLock) return
+        if (capsLock || trMode) return
         val ic = currentInputConnection
         val want = ic != null && !isRawField() &&
             ic.getCursorCapsMode(currentInputEditorInfo?.inputType ?: 0) != 0
@@ -389,11 +518,117 @@ class OZKeyInputMethod : InputMethodService() {
         if (caps != drawnCaps) render()
     }
 
+    // ---------- tarjima paneli va asboblar ----------
+
+    private fun commit(text: String) {
+        if (trMode) { trBuf.append(text); refreshBuf() }
+        else currentInputConnection?.commitText(text, 1)
+    }
+
+    private fun backspaceBuf() {
+        if (trBuf.isEmpty()) return
+        val n = if (trBuf.length >= 2 && Character.isLowSurrogate(trBuf[trBuf.length - 1])) 2 else 1
+        trBuf.setLength(trBuf.length - n)
+        refreshBuf()
+    }
+
+    /** Buferdagi "s"+"h" kabi juftliklarni ÖZ harfiga almashtiradi. */
+    private fun convertBufDigraph() {
+        if (trBuf.length < 2) return
+        val tail = trBuf.substring(trBuf.length - 2)
+        val conv = Alphabet.toNew(tail)
+        if (conv != tail) { trBuf.setLength(trBuf.length - 2); trBuf.append(conv) }
+    }
+
+    private fun translateBuffer() {
+        val raw = trBuf.toString().trim()
+        if (raw.isEmpty()) { toast("Avval matn yozing"); return }
+        if (isRawField()) { toast("Bu maydonda tarjima o'chirilgan"); return }
+        if (translating) return
+        val src = if (lang.uzDigraph) Alphabet.toStandard(raw) else raw
+        translating = true
+        toast("Tarjima qilinmoqda…")
+        val key = prefs().getString("apikey", "") ?: ""
+        Thread {
+            val result = try { Result.success(Translator.translate(src, target, key)) }
+            catch (e: Exception) { Result.failure<String>(e) }
+            handler.post {
+                translating = false
+                result.onSuccess { out ->
+                    trMode = false
+                    trBuf.clear()
+                    currentInputConnection?.commitText(out, 1)
+                    render()
+                    syncCaps()
+                }.onFailure { toast("Tarjima bo'lmadi: internetni tekshiring") }
+            }
+        }.start()
+    }
+
+    private fun cycleTarget() {
+        val t = Translator.targets
+        target = t[(t.indexOf(target) + 1) % t.size]
+        prefs().edit().putString("target", target).apply()
+    }
+
+    private fun setLang(code: String) {
+        lang = Languages.active(this).firstOrNull { it.code == code } ?: return
+        prefs().edit().putString("lang", lang.code).apply()
+        caps = false; capsLock = false
+        layer = Layer.LETTERS
+        render()
+        syncCaps()
+    }
+
+    private fun handleTile(key: String) {
+        val ic = currentInputConnection
+        layer = Layer.LETTERS
+        when (key) {
+            "t:TR" -> { trMode = true; trBuf.clear(); render() }
+            "t:FIELD" -> { render(); if (ic != null) doTranslate(ic) }
+            "t:CLIP" -> {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val t = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+                if (t.isNullOrEmpty()) toast("Bufer bo'sh") else commit(t)
+                render()
+            }
+            "t:PHR" -> { layer = Layer.PHRASES; render() }
+            "t:CONV" -> { render(); if (ic != null) doConvert(ic) }
+            "t:COPY" -> { render(); if (ic != null) doCopyStandard(ic) }
+            "t:THEME" -> {
+                val free = Themes.all.filter { !it.premium || Premium.isPremium(this) }
+                val next = free[(free.indexOfFirst { it.id == theme.id } + 1) % free.size]
+                prefs().edit().putString("theme", next.id).apply()
+                loadPrefs(); render()
+                toast("Mavzu: " + next.name)
+            }
+            "t:NIGHT" -> {
+                prefs().edit().putString("theme", if (theme.id == "dark") "light" else "dark").apply()
+                loadPrefs(); render()
+            }
+            "t:HAPTIC" -> {
+                haptic = !haptic
+                prefs().edit().putBoolean("haptic", haptic).apply()
+                layer = Layer.TOOLS; render()
+            }
+            "t:ONE" -> {
+                oneHand = !oneHand
+                prefs().edit().putBoolean("onehand", oneHand).apply()
+                applyPad(); render()
+            }
+            "t:TGT" -> { cycleTarget(); layer = Layer.TOOLS; render() }
+            else -> {
+                render()
+                startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }
+    }
+
     private fun handleKey(key: String) {
         val ic = currentInputConnection ?: return
         pendingUndo = null
-        when (key) {
-            "⇧" -> {
+        when {
+            key == "⇧" -> {
                 val now = SystemClock.uptimeMillis()
                 if (capsLock) { capsLock = false; caps = false }
                 else if (caps && now - lastShiftTap < 400) capsLock = true
@@ -401,7 +636,8 @@ class OZKeyInputMethod : InputMethodService() {
                 lastShiftTap = now
                 render()
             }
-            "↵" -> {
+            key == "↵" -> {
+                if (trMode) { translateBuffer(); return }
                 val info = currentInputEditorInfo
                 val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
                 val noAction = info != null && (info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
@@ -413,46 +649,46 @@ class OZKeyInputMethod : InputMethodService() {
                 }
                 syncCaps()
             }
-            "space" -> { ic.commitText(" ", 1); syncCaps() }
-            "🌐" -> {
+            key == "space" -> { commit(" "); if (!trMode) syncCaps() }
+            key == "🌐" -> {
                 val all = Languages.active(this)
                 val i = all.indexOfFirst { it.code == lang.code }
-                lang = all[(i + 1) % all.size]
-                prefs().edit().putString("lang", lang.code).apply()
-                caps = false; capsLock = false
-                layer = Layer.LETTERS
-                render()
-                syncCaps()
+                setLang(all[(i + 1) % all.size].code)
             }
-            "?123" -> { layer = Layer.SYMBOLS; render() }
-            "ABC" -> { layer = Layer.LETTERS; render(); syncCaps() }
-            "😊" -> { layer = Layer.EMOJI; render() }
-            "TR" -> doTranslate(ic)
-            "TGT" -> {
-                val t = Translator.targets
-                target = t[(t.indexOf(target) + 1) % t.size]
-                prefs().edit().putString("target", target).apply()
-                toast("Tarjima tili: " + when (target) { "uz" -> "O'zbekcha (lotin)"; "uz-cyr" -> "Ўзбекча (кирилл)"; "ru" -> "Русский"; else -> "English" })
-                render()
+            key == "LANGLAT" -> setLang("UZ")
+            key == "LANGCYR" -> setLang("UZC")
+            key == "?123" -> { layer = Layer.SYMBOLS; render() }
+            key == "ABC" -> { layer = Layer.LETTERS; render(); syncCaps() }
+            key == "😊" -> { layer = Layer.EMOJI; render() }
+            key == "TOOLS" -> { layer = Layer.TOOLS; render() }
+            key == "HIDE" -> requestHideSelf(0)
+            key == "tsrc" -> toast("Til avtomatik aniqlanadi")
+            key == "ttgt" -> { cycleTarget(); render() }
+            key == "tx" -> { trMode = false; trBuf.clear(); render() }
+            key == "tok" -> translateBuffer()
+            key.startsWith("t:") -> handleTile(key)
+            key.startsWith("cat:") -> { emojiCat = key.substring(4).toInt(); render() }
+            key.startsWith("emo:") -> commit(key.substring(4))
+            key.startsWith("ph:") -> {
+                phrases().getOrNull(key.substring(3).toInt())?.let { commit(it) }
+                layer = Layer.LETTERS; render()
             }
-            "CONV" -> doConvert(ic)
-            "COPY" -> doCopyStandard(ic)
-            "SET" -> startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            else -> if (key.startsWith("cat:")) {
-                emojiCat = key.substring(4).toInt(); render()
-            } else if (key.startsWith("emo:")) {
-                ic.commitText(key.substring(4), 1)
-            } else {
+            else -> {
                 val value = if (caps && key.any { it.isLetter() }) key.uppercase() else key
-                ic.commitText(value, 1)
-                if (lang.uzDigraph && !isRawField()) convertDigraph()
+                if (trMode) {
+                    trBuf.append(value)
+                    if (lang.uzDigraph) convertBufDigraph()
+                    refreshBuf()
+                } else {
+                    ic.commitText(value, 1)
+                    if (lang.uzDigraph && !isRawField()) convertDigraph()
+                }
                 if (!capsLock) caps = false
                 syncCaps()
                 if (caps != drawnCaps) render()
             }
         }
     }
-
     private fun convertDigraph() {
         val ic = currentInputConnection ?: return
         val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
@@ -478,6 +714,9 @@ class OZKeyInputMethod : InputMethodService() {
         super.onStartInputView(info, restarting)
         loadPrefs()
         pendingUndo = null
+        trMode = false; trBuf.clear()
+        layer = Layer.LETTERS
+        if (::keyboard.isInitialized) applyPad()
         render()
         syncCaps()
     }

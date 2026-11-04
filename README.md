@@ -1,6 +1,13 @@
-# ÖZKEY Android — 0.4.0
+# ÖZKEY Android — 0.5.0 (1-bosqich)
 
 Premium o'zbek klaviaturasi (Kotlin, `InputMethodService`).
+
+## 0.5.0 (1-bosqich) yangiliklari
+- **Tepa panel:** O'z | Ўз tez almashtirish, emoji, asboblar (⚙), klaviaturani yopish (⌄)
+- **Asboblar paneli:** Tarjima, Maydonni tarjima, Bufer, Iboralar, Lotin⇄Kirill, Oddiy nusxa, Mavzu, Tungi rejim, Tebranish, Bir qo'l, Tarjima tili, Sozlamalar
+- **Tarjima paneli:** «Avto → til» chiplari, yozish maydoni, ✓ bosilsa tarjima ilovaga yoziladi
+- **Iboralar:** tez yuboriladigan 15 ta ibora (tanlangan yozuvda)
+- Keyingi bosqichlar: 2) mavzu galereyasi (kategoriya, rasm fon), 3) stikerlar
 
 ## 0.4.0 yangiliklari
 - **Logo** va ikonkalar (adaptiv + eski Android), Play Market grafikalari: `store/`
