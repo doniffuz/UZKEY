@@ -22,7 +22,7 @@ Bu matnlar Play Market, RuStore, APKPure va boshqa do'konlar uchun ham mos.
 ## 2. Ilova ma'lumotlari
 - **Nomi:** ÖZKEY — O'zbek klaviaturasi
 - **Paket (package):** `uz.ozkey.keyboard`
-- **Versiya:** 0.6.0 (versionCode 7)
+- **Versiya:** 0.6.2 (versionCode 9)
 - **Dasturchi:** Donyor
 - **Kategoriya:** Vositalar (Tools) / Shaxsiylashtirish → Klaviaturalar
 - **Yosh chegarasi:** Hammaga (3+)
@@ -35,15 +35,17 @@ Bu matnlar Play Market, RuStore, APKPure va boshqa do'konlar uchun ham mos.
 - **RU:** `Узбекская клавиатура: латиница и кириллица, перевод, буфер, 30+ тем`
 
 ## 4. To'liq tavsif — O'zbekcha
-**ÖZKEY — o'zbek tilida tez, qulay va chiroyli yozing.**
+**ÖZKEY Keyboard 🇺🇿**
+**O‘zbekcha yozuv — yangi daraja.**
 
-ÖZKEY — o'zbek tili uchun maxsus yaratilgan klaviatura. Lotin va kirill alifbosi bir joyda, tarjima va bufer esa yozayotganda qo'l ostida.
+ÖZKEY — o‘zbek tilida qulay, zamonaviy va tez yozish uchun yaratilgan Android klaviatura.
+Ilova yangi o‘zbek alifbosini qo‘llab-quvvatlaydi va yozishni yanada qulay qilishga qaratilgan.
 
 **Nimalar bor:**
 • 🔤 **Lotin ⇄ Kirill** — bitta tugma bilan almashtiring (O'z | Ўз). Ğ, Ö, Ş, Ç va Ў, Қ, Ғ, Ҳ harflari tayyor.
 • 🌍 **Jonli tarjima** — yozayotganingizda tarjimasi pastda ko'rinadi. ✓ bosing — tarjima matnga yoziladi, yoki «Asl + tarjima» bilan ikkalasini birga yuboring. O'zbekcha, Ўзбекча, ruscha va inglizcha.
-• 📋 **Bufer tarixi** — nusxalagan matnlaringiz saqlanadi. Keyin bosib qo'yasiz. Kerakligini ★ bilan qadab qo'ying.
-• 🎨 **30 dan ortiq mavzu** — Samarqand, Registon, Buxoro, Atlas, neon RGB, oq, qora va boshqalar.
+• 📋 **Bufer** — 300 tagacha nusxa tarixi, ⭐ Sevimlilar (o'chmaydi), 📌 mahkamlash, kategoriyalar, qidiruv, tahrirlash va parol bilan shifrlangan zaxira (Eksport/Import).
+• 🎨 **30 dan ortiq mavzu** — Samarqand, Registon, Buxoro, Atlas, neon RGB, oq, qora, Avto (Kun/Tun) va boshqalar.
 • 🖼 **O'z rasmingiz** — galereyadan istalgan rasmni klaviatura foni qiling.
 • 😊 Emoji, tez iboralar («Assalomu alaykum», «Rahmat»…), bir qo'lda yozish rejimi.
 • 🔠 Harflar o'lchami va klaviatura balandligini o'zingizga moslang.
@@ -53,7 +55,20 @@ Bu matnlar Play Market, RuStore, APKPure va boshqa do'konlar uchun ham mos.
 
 **Qanday yoqiladi:** ilovani oching → «ÖZKEY ni yoqing» → «Klaviaturani tanlang». Hammasi shu.
 
-Dasturchi: **Donyor** 🇺🇿
+👨‍💻 **Dasturchi**
+Donyor
+
+ÖZKEY — foydalanuvchilar uchun foydali va qulay bo‘ladigan mahsulotlar yaratish maqsadida ishlab chiqilmoqda.
+Sizda taklif, xato yoki yangi g‘oya bo‘lsa, bizga yozishingiz mumkin.
+
+📩 Telegram: @Doniku_Admin
+
+Sizning fikringiz ÖZKEY'ni yanada yaxshilashga yordam beradi.
+
+🚀 **Kelajakdagi maqsad**
+ÖZKEY'ni yanada qulay, tezkor va foydali qilish hamda o‘zbek tilidagi raqamli mahsulotlarni ko‘paytirish.
+
+ÖZKEY — O‘zbekcha yozuv, yangi avlod!
 
 ## 5. To'liq tavsif — English
 **ÖZKEY — type Uzbek fast, comfortably and in style.**
@@ -63,7 +78,7 @@ Dasturchi: **Donyor** 🇺🇿
 **Features:**
 • 🔤 **Latin ⇄ Cyrillic** — switch with one tap. Ğ, Ö, Ş, Ç and Ў, Қ, Ғ, Ҳ are built in.
 • 🌍 **Live translation** — see the translation while you type. Tap ✓ to insert it, or "Original + translation" to send both. Uzbek (Latin/Cyrillic), Russian and English.
-• 📋 **Clipboard history** — copied texts are kept so you can paste them later. Pin favorites with ★.
+• 📋 **Clipboard** — up to 300 copied texts, ⭐ favorites that never expire, 📌 pins, categories, search, editing and password-encrypted backup (export/import).
 • 🎨 **30+ themes** — Samarkand, Registan, Bukhara, Atlas, neon RGB, white, black and more.
 • 🖼 **Your own photo** — use any picture from your gallery as the keyboard background.
 • 😊 Emoji, quick phrases, one-handed mode, adjustable key height and letter size.
@@ -71,7 +86,7 @@ Dasturchi: **Donyor** 🇺🇿
 
 **Privacy:** what you type is not sent to any server. Clipboard history and your background photo stay on your phone. The internet is used only for translation.
 
-Developer: **Donyor** 🇺🇿
+Developer: **Donyor** 🇺🇿 · Feedback & ideas: Telegram @Doniku_Admin
 
 ## 6. To'liq tavsif — Русский
 **ÖZKEY — печатайте по-узбекски быстро, удобно и красиво.**
@@ -89,16 +104,20 @@ Developer: **Donyor** 🇺🇿
 
 **Конфиденциальность:** набранный текст не отправляется на сервер. История буфера и фото хранятся только на телефоне. Интернет нужен лишь для перевода.
 
-Разработчик: **Donyor** 🇺🇿
+Разработчик: **Donyor** 🇺🇿 · Предложения и ошибки: Telegram @Doniku_Admin
 
-## 7. Nima yangi (0.6.0)
+## 7. Nima yangi (0.6.2)
 **UZ**
 • Yangi dizayn: o'zbekona naqshlar va ranglar
 • Jonli tarjima paneli, «Asl + tarjima»
 • 📋 Bufer tarixi (tepa panelning chap chetida)
 • 30 dan ortiq mavzu va galereyadan rasm fon
 • Harflar kattalashtirildi, harf o'lchami sozlanadi
-• Kichik xatolar tuzatildi
+• Tugmalar kattaroq, bo'shliq tasodifan bosilmaydi
+• Tezroq ishlaydi (shift va katta harf endi bir zumda)
+• Yangi nusxa tepa panelda taklif bo'lib chiqadi
+• Yangi «Avto» mavzu: telefon Kun/Tun rejimiga moslashadi
+• Soddaroq interfeys, «Ilova haqida» bo'limi va dasturchi bilan aloqa (Telegram), kichik xatolar tuzatildi
 
 **EN**
 • New Uzbek-style design
@@ -106,7 +125,10 @@ Developer: **Donyor** 🇺🇿
 • 📋 Clipboard history (far-left of the top bar)
 • 30+ themes and a gallery photo as background
 • Larger letters, adjustable letter size
-• Bug fixes
+• Larger keys, safer space bar, faster shift/caps
+• Clipboard suggestion chip in the top bar
+• New "Auto" theme follows system light/dark
+• Simpler interface, bug fixes
 
 ## 8. Skrinshotlar (kamida 4 ta, telefon ekrani 1080×1920 atrofida)
 1. Ilovaning bosh sahifasi (feruza sarlavha, «Ulash — 2 qadam»)
@@ -119,6 +141,6 @@ Developer: **Donyor** 🇺🇿
 ## 9. Yuborishdan oldin tekshiruv
 - [ ] `tools/make-keystore.sh` → GitHub sirlari kiritildi
 - [ ] Release APK telefonga o'rnatilib sinab ko'rildi (yoqish, yozish, 📋, tarjima, rasm fon)
-- [ ] Maxfiylik siyosatidagi `[email manzilingiz]` o'rniga o'z emailingiz yozildi va `docs/privacy.html` internetga qo'yildi (GitHub Pages)
+- [ ] `docs/privacy.html` internetga qo'yildi (GitHub Pages) — havola do'kon formasiga kiritiladi (aloqa: Telegram @Doniku_Admin)
 - [ ] Skrinshotlar tayyor
 - [ ] Tarjima serveri: `gradle.properties` ga `ozkeyTranslateUrl=` yozilsa, tarjima o'z serveringiz orqali ishlaydi (tavsiya etiladi). Yozilmasa — zaxira bepul xizmat ishlatiladi, u rasmiy emas va to'xtab qolishi mumkin.

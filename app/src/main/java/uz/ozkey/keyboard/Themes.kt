@@ -31,6 +31,7 @@ class KeyTheme(
 object Themes {
     const val DEFAULT_ID = "samarkand"
     const val PHOTO_ID = "photo"
+    const val AUTO_ID = "auto"   // telefon Kun/Tun rejimiga qarab Yorug' yoki Qora
 
     val groups = listOf("O'zbekona", "Oddiy", "Rangli", "Neon")
 
@@ -49,6 +50,7 @@ object Themes {
         KeyTheme("feruza", "Feruza", "O'zbekona", c(176, 236, 232), c(120, 214, 212), c(240, 253, 252), c(150, 224, 220), c(8, 84, 92), c(14, 140, 150)),
 
         // ---- Oddiy ----
+        KeyTheme(AUTO_ID, "Avto", "Oddiy", c(225, 230, 240), c(28, 28, 30), c(150, 156, 168), c(104, 110, 124), Color.WHITE),
         KeyTheme("light", "Yorug'", "Oddiy", c(225, 230, 240), c(225, 230, 240), Color.WHITE, c(200, 208, 226), c(25, 34, 52)),
         KeyTheme("snow", "Oq", "Oddiy", c(246, 246, 248), c(246, 246, 248), Color.WHITE, c(230, 230, 236), c(20, 20, 24), c(222, 222, 228)),
         KeyTheme("dark", "Qora", "Oddiy", c(28, 28, 30), c(28, 28, 30), c(58, 58, 62), c(44, 44, 47), Color.WHITE),

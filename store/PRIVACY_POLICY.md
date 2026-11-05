@@ -1,6 +1,6 @@
 # ÖZKEY — Maxfiylik siyosati
 
-**Dasturchi:** Donyor  ·  **Aloqa:** [email manzilingiz]  ·  **Oxirgi yangilanish:** 2026-11-05
+**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin  ·  **Oxirgi yangilanish:** 2026-11-05
 
 ÖZKEY — o'zbek tilidagi klaviatura ilovasi. Klaviatura siz yozgan matnni ko'radi, shuning uchun uni qanday ishlatishimiz haqida ochiq yozamiz.
 
@@ -11,7 +11,7 @@
 
 ## Nimalar qurilmangizda saqlanadi (faqat telefonda)
 - Sozlamalar: mavzu, til, o'lcham, tebranish.
-- **Bufer tarixi:** nusxalagan matnlaringiz (oxirgi 30 tagacha + qadalganlari). Faqat qurilmada turadi. Sozlamadan o'chirib qo'yish yoki tozalash mumkin. Android 13+ da «maxfiy» deb belgilangan nusxalar (masalan, parol menejeridan) saqlanmaydi.
+- **Bufer:** nusxalagan matnlaringiz (oxirgi 300 tagacha oddiy nusxa + ⭐ Sevimli, 📌 Mahkamlangan va kategoriyaga solingan matnlar). Faqat qurilmada turadi. Yangi nusxalangan matn 2 daqiqa davomida tepa panelda taklif sifatida ko'rinadi (faqat ekranda, hech qayerga yuborilmaydi). Sozlamadan o'chirib qo'yish yoki tozalash mumkin. OTP kod va bank karta raqamiga o'xshash nusxalar hamda Android 13+ da «maxfiy» deb belgilangan nusxalar (masalan, parol menejeridan) saqlanmaydi. Zaxira (Eksport) faylini faqat o'zingiz yaratasiz: u sizning parolingiz bilan shifrlanadi va o'zingiz tanlagan joyga yoziladi; ÖZKEY uni hech qayerga yubormaydi va parolni saqlamaydi.
 - **Klaviatura foni uchun rasm:** galereyadan o'zingiz tanlagan rasm ilovaning ichki xotirasida saqlanadi va hech qayerga yuborilmaydi.
 
 ## Faqat siz so'raganda internetga chiqadi

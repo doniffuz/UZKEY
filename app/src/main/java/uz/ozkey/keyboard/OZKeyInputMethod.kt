@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -17,7 +18,11 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.TextUtils
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
@@ -56,6 +61,18 @@ class OZKeyInputMethod : InputMethodService() {
     private var pendingUndo: String? = null
     private var navBottom = 0
 
+    // So'z takliflari / avto-tuzatish / Smart Touch (hammasi qurilmada, serverga hech narsa ketmaydi)
+    private var predictOn = true
+    private var autoCorrectOn = true
+    private var smartTouchOn = true
+    private class Corr(val original: String, val corrected: String, val boundary: String)
+    private var corr: Corr? = null
+    private var neighbors: Map<Char, Set<Char>> = emptyMap()
+    private var sugg: List<String> = emptyList()
+    private val sgViews = mutableListOf<TextView>()
+    private val sgKeys = listOf("sg:0", "sg:1", "sg:2")
+    private val suggestRunnable = Runnable { updateSuggestions() }
+
     // Tarjima paneli: yozilgan matn ilovaga emas, shu yerga tushadi
     private var trMode = false
     private val trBuf = StringBuilder()
@@ -70,6 +87,8 @@ class OZKeyInputMethod : InputMethodService() {
 
     // Bufer tarixi
     private var clipItems: List<ClipStore.Item> = emptyList()
+    private var clipTab = ClipStore.TAB_HISTORY   // Tarix | Sevimlilar | Mahkamlangan
+    private var clipDelAsk = -1L                  // o'chirish tasdig'i kutilayotgan matn (id)
     private var clipListenerOn = false
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { captureClip() }
 
@@ -83,16 +102,27 @@ class OZKeyInputMethod : InputMethodService() {
     private var animator: ValueAnimator? = null
     private var frame = 0
 
-    private val topBar = listOf("CLIP", "LANGLAT", "LANGCYR", "sp", "😊", "TOOLS", "HIDE")
+    // Harf tugmalari: shift bosilganda butun klaviatura qayta qurilmaydi, faqat yozuvlar yangilanadi (tez!)
+    private val letterViews = mutableListOf<Pair<TextView, String>>()
+    private var shiftView: TextView? = null
+    private var shiftBg: GradientDrawable? = null
+
+    // Yangi nusxalangan matn taklifi (tepa panelda 2 daqiqa turadi)
+    private var recentClip: String? = null
+    private var recentClipAt = 0L
+    private var recentUsed = true
+    private val wsRegex = Regex("\\s+")
+
+    // Tepa panel: 📋 bufer | O'z | Ўз | (yangi nusxa taklifi) | asboblar | yopish
+    private val topBar = listOf("CLIP", "LANGLAT", "LANGCYR", "cchip", "TOOLS", "HIDE")
     private val tileKeys = listOf(
-        "t:TR", "t:FIELD", "t:CLIP", "t:PHR",
-        "t:CONV", "t:COPY", "t:THEME", "t:NIGHT",
-        "t:HAPTIC", "t:ONE", "t:TGT", "t:SET"
+        "t:TR", "t:FIELD", "t:PHR", "t:CONV", "t:UNDO",
+        "t:REDO", "t:COPY", "t:THEME", "t:NIGHT", "t:SET"
     )
     private val specials = setOf(
         "⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space",
         "CLIP", "LANGLAT", "LANGCYR", "TOOLS", "HIDE",
-        "ttgt", "tboth", "tx", "tok", "ctitle", "cclear"
+        "ttgt", "tboth", "tx", "tok", "cclear", "cchip"
     )
     private val apostrophes = setOf("'", "’", "‘", "ʻ", "ʼ", "＇")
 
@@ -107,10 +137,12 @@ class OZKeyInputMethod : InputMethodService() {
     private val bottomRow = listOf("?123", "🌐", "😊", ",", "space", ".", "↵")
 
     private fun isScrollKey(k: String) =
-        k.startsWith("emo:") || k.startsWith("ph:") || k.startsWith("cp:") || k.startsWith("cpin:") || k.startsWith("cdel:")
+        k.startsWith("emo:") || k.startsWith("ph:") || k.startsWith("cp:") || k.startsWith("cpin:") || k.startsWith("cdel:") ||
+            k.startsWith("cfav:") || k.startsWith("cno:") || k.startsWith("cyes:")
 
     private fun isSpecialKey(k: String) =
-        k in specials || k.startsWith("cat:") || k.startsWith("t:") || k.startsWith("cpin:") || k.startsWith("cdel:")
+        k in specials || k.startsWith("sg:") || k.startsWith("cat:") || k.startsWith("t:") || k.startsWith("cpin:") || k.startsWith("cdel:") ||
+            k.startsWith("cfav:") || k.startsWith("ctab:") || k.startsWith("cask:") || k.startsWith("cno:") || k.startsWith("cyes:")
 
     private fun lettersRows(): List<List<String>> {
         val r = lang.rows
@@ -135,6 +167,10 @@ class OZKeyInputMethod : InputMethodService() {
     private fun loadPrefs() {
         var t = Themes.byId(prefs().getString("theme", Themes.DEFAULT_ID))
         if (t.photo && !PhotoStore.exists(this)) t = Themes.byId(Themes.DEFAULT_ID)
+        if (t.id == Themes.AUTO_ID) {
+            val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            t = Themes.byId(if (night) "dark" else "light")
+        }
         theme = t
         scale = prefs().getInt("scale", 100).coerceIn(80, 140)
         fontScale = prefs().getInt("fscale", 100).coerceIn(85, 130)
@@ -143,7 +179,16 @@ class OZKeyInputMethod : InputMethodService() {
         target = prefs().getString("target", "uz") ?: "uz"
         val code = prefs().getString("lang", "UZ")
         lang = Languages.active(this).firstOrNull { it.code == code } ?: Languages.UZ
+        predictOn = prefs().getBoolean("predict", true)
+        autoCorrectOn = prefs().getBoolean("autocorrect", true)
+        smartTouchOn = prefs().getBoolean("smarttouch", true)
+        if (lang.code == "UZ") {
+            WordModel.init(this)
+            neighbors = WordModel.buildNeighbors(lang.rows)
+        }
     }
+
+    private fun sgBarOn() = predictOn && lang.code == "UZ"
 
     override fun onCreate() {
         super.onCreate()
@@ -156,7 +201,7 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun applyPad() {
         val extra = if (oneHand) (resources.displayMetrics.widthPixels * 0.25f).toInt() else 0
-        keyboard.setPadding(dp(4), dp(6), dp(4) + extra, dp(6) + navBottom)
+        keyboard.setPadding(dp(1), dp(3), dp(1) + extra, dp(3) + navBottom)
     }
 
     override fun onCreateInputView(): View {
@@ -178,9 +223,11 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun rowHeightDp(row: List<String>): Int {
         val base = when {
-            row === topBar -> 38
-            layer == Layer.LETTERS && row === digits -> 42
-            else -> 50
+            row === topBar -> 36
+            row === sgKeys -> 34
+            layer == Layer.LETTERS && row === digits -> 40
+            layer == Layer.LETTERS && row === lang.extra -> 44
+            else -> 52
         }
         return (base * scale / 100f).toInt()
     }
@@ -209,6 +256,10 @@ class OZKeyInputMethod : InputMethodService() {
         liveView = null
         keyboard.removeAllViews()
         keyViews.clear()
+        letterViews.clear()
+        sgViews.clear()
+        shiftView = null
+        shiftBg = null
         keyboard.background = (if (theme.photo) photoBackground() else null) ?: gradientBackground()
         when (layer) {
             Layer.EMOJI -> renderEmoji()
@@ -221,10 +272,14 @@ class OZKeyInputMethod : InputMethodService() {
             }
             Layer.LETTERS -> {
                 if (trMode) keyboard.addView(translateHeader())
-                else keyboard.addView(buildRow(topBar, rowHeightDp(topBar)))
+                else {
+                    keyboard.addView(buildRow(topBar, rowHeightDp(topBar)))
+                    if (sgBarOn()) keyboard.addView(buildRow(sgKeys, rowHeightDp(sgKeys)))
+                }
                 lettersRows().forEach { keyboard.addView(buildRow(it, rowHeightDp(it))) }
             }
         }
+        if (layer == Layer.LETTERS) { refreshCaps(); scheduleSuggest() }
         startGlow()
     }
 
@@ -233,11 +288,16 @@ class OZKeyInputMethod : InputMethodService() {
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
         key == "sp" -> 1.5f
+        key == "cchip" -> 2.8f
         key == "ttgt" -> 3f
         key == "tboth" -> 2.2f
         key == "tx" -> 0.9f
-        key == "ctitle" -> 3f
-        key == "cclear" -> 2f
+        key == "ctab:0" -> 1.4f
+        key == "ctab:1" -> 2f
+        key == "ctab:2" -> 2.4f
+        key == "cclear" -> 0.9f
+        key.startsWith("cask:") -> 4f
+        key.startsWith("cno:") || key.startsWith("cyes:") -> 2f
         key.startsWith("cp:") -> 6f
         else -> 1f
     }
@@ -250,7 +310,9 @@ class OZKeyInputMethod : InputMethodService() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        row.forEach { key -> rowLayout.addView(makeKey(key), LinearLayout.LayoutParams(0, dp(heightDp), weightOf(key))) }
+        row.forEachIndexed { i, key ->
+            rowLayout.addView(makeKey(key, row.getOrNull(i - 1), row.getOrNull(i + 1)), LinearLayout.LayoutParams(0, dp(heightDp), weightOf(key)))
+        }
         return rowLayout
     }
 
@@ -274,8 +336,8 @@ class OZKeyInputMethod : InputMethodService() {
     }
 
     private fun renderTools() {
-        val h = (66 * scale / 100f).toInt()
-        tileKeys.chunked(4).forEach { keyboard.addView(buildRow(it, h)) }
+        val h = (92 * scale / 100f).toInt()
+        tileKeys.chunked(5).forEach { keyboard.addView(buildRow(it, h)) }
         keyboard.addView(bottomBarRow())
     }
 
@@ -309,15 +371,21 @@ class OZKeyInputMethod : InputMethodService() {
     // ---------- bufer (clipboard) ----------
 
     private fun renderClipboard() {
-        clipItems = ClipStore.list(this).take(30)
+        clipItems = ClipStore.list(this, clipTab, limit = 80)
         val h = (46 * scale / 100f).toInt()
-        keyboard.addView(buildRow(listOf("ctitle", "cclear"), (40 * scale / 100f).toInt()))
+        val tabs = if (clipTab == ClipStore.TAB_HISTORY) listOf("ctab:0", "ctab:1", "ctab:2", "cclear")
+        else listOf("ctab:0", "ctab:1", "ctab:2")
+        keyboard.addView(buildRow(tabs, (40 * scale / 100f).toInt()))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         if (clipItems.isEmpty()) {
             list.addView(TextView(this).apply {
-                text = if (prefs().getBoolean("cliphist", true))
-                    "Hali hech narsa nusxalanmagan.\nBiror joydan matnni nusxalang — shu yerda saqlanadi va keyin bosib qo'yasiz."
-                else "Bufer tarixi o'chirilgan. Ilova → Sozlama bo'limidan yoqing."
+                text = when (clipTab) {
+                    ClipStore.TAB_FAV -> "Sevimli matn yo'q.\nTarixdagi matnning ☆ tugmasini bosing — u hech qachon avtomatik o'chmaydi."
+                    ClipStore.TAB_PIN -> "Mahkamlangan matn yo'q.\n📍 ni bosing — matn doim ro'yxat tepasida turadi."
+                    else -> if (prefs().getBoolean("cliphist", true))
+                        "Hali hech narsa nusxalanmagan.\nBiror joydan matnni nusxalang — shu yerda saqlanadi va keyin bosib qo'yasiz."
+                    else "Bufer tarixi o'chirilgan. Ilova → Sozlama bo'limidan yoqing."
+                }
                 textSize = 14f
                 gravity = Gravity.CENTER
                 setTextColor(theme.text)
@@ -325,8 +393,9 @@ class OZKeyInputMethod : InputMethodService() {
                 setPadding(dp(20), dp(24), dp(20), dp(24))
             })
         } else {
-            clipItems.indices.forEach { i ->
-                list.addView(buildRow(listOf("cp:$i", "cpin:$i", "cdel:$i"), h))
+            clipItems.forEachIndexed { i, item ->
+                if (item.id == clipDelAsk) list.addView(buildRow(listOf("cask:$i", "cno:$i", "cyes:$i"), h))
+                else list.addView(buildRow(listOf("cp:$i", "cfav:$i", "cpin:$i", "cdel:$i"), h))
             }
         }
         keyboard.addView(
@@ -346,12 +415,34 @@ class OZKeyInputMethod : InputMethodService() {
             if (Build.VERSION.SDK_INT >= 33 &&
                 clip.description.extras?.getBoolean("android.content.extra.IS_SENSITIVE", false) == true) return
             val t = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+            // OTP kod / karta raqami ko'rinishidagi matn tarixga tushmaydi (Sozlamadan o'chirish mumkin)
+            if (prefs().getBoolean("clipsafe", true) && ClipStore.looksSensitive(t)) return
             ClipStore.add(this, t)
+            val tt = t.trim()
+            if (tt.isNotEmpty() && tt.length <= ClipStore.MAX_LEN && tt != recentClip) {
+                recentClip = tt
+                recentClipAt = SystemClock.uptimeMillis()
+                recentUsed = false
+                // klaviatura ko'rinib turgan bo'lsa — taklif chipini darhol chiqaramiz
+                if (::keyboard.isInitialized && keyboard.isShown && layer == Layer.LETTERS && !trMode) render()
+            }
         } catch (e: Exception) { /* buferga ruxsat yo'q — jim o'tamiz */ }
+    }
+
+    private fun chipVisible(): Boolean {
+        val c = recentClip ?: return false
+        return c.isNotEmpty() && !recentUsed && !trMode && !isRawField() &&
+            SystemClock.uptimeMillis() - recentClipAt < 120_000
+    }
+
+    private fun chipLabel(): String {
+        val one = (recentClip ?: "").replace(wsRegex, " ")
+        return "📋 " + if (one.length > 24) one.substring(0, 24) + "…" else one
     }
 
     private fun openClipboard() {
         captureClip()
+        clipDelAsk = -1L
         layer = Layer.CLIPBOARD
         render()
     }
@@ -470,23 +561,33 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun tileLabel(key: String): String = when (key) {
         "t:TR" -> "🌍\nTarjima"
-        "t:FIELD" -> "📝\nMaydonni\ntarjima"
-        "t:CLIP" -> "📋\nBufer"
+        "t:FIELD" -> "📝\nMaydon\n→ " + targetName(target)
         "t:PHR" -> "💬\nIboralar"
-        "t:CONV" -> "🔄\nLotin⇄Kirill"
-        "t:COPY" -> "📄\nOddiy yozuvda\nnusxa"
+        "t:CONV" -> "🔄\nLotin⇄\nKirill"
+        "t:UNDO" -> "↶\nBekor\nqilish"
+        "t:REDO" -> "↷\nQayta\nqilish"
+        "t:COPY" -> "📄\nOddiy\nnusxa"
         "t:THEME" -> "🎨\nMavzu"
-        "t:NIGHT" -> "🌙\nTungi rejim"
-        "t:HAPTIC" -> "📳\nTebranish: " + if (haptic) "ON" else "OFF"
-        "t:ONE" -> "👍\nBir qo'l: " + if (oneHand) "ON" else "OFF"
-        "t:TGT" -> "🎯\nTarjima tili:\n" + targetName(target)
+        "t:NIGHT" -> "☀️🌙\nKun/Tun"
         else -> "⚙️\nSozlamalar"
     }
 
-    private fun clipLabel(i: Int): String {
-        val t = clipItems.getOrNull(i)?.text ?: return ""
-        val one = t.replace("\n", " ⏎ ").replace(Regex("\\s+"), " ")
-        return if (one.length > 90) one.substring(0, 90) + "…" else one
+    /** Bufer kartochkasi: 1-qator — matn boshi, 2-qator (kichik, xira) — vaqt, kategoriya, uzunlik. */
+    private fun clipSpan(i: Int): CharSequence {
+        val item = clipItems.getOrNull(i) ?: return ""
+        val one = item.preview.replace("\n", " ⏎ ").replace(wsRegex, " ").trim()
+        val head = if (one.length > 48) one.substring(0, 48) + "…" else one
+        var meta = ClipStore.ago(item.ts)
+        if (item.cat.isNotEmpty()) meta += " · " + ClipStore.catLabel(item.cat)
+        if (item.cut) meta += " · ${item.len} belgi"
+        val sb = SpannableStringBuilder(head).append('\n')
+        val from = sb.length
+        sb.append(meta)
+        sb.setSpan(RelativeSizeSpan(0.74f), from, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        val c = theme.text
+        sb.setSpan(ForegroundColorSpan(Color.argb(150, Color.red(c), Color.green(c), Color.blue(c))),
+            from, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        return sb
     }
 
     private fun labelFor(key: String): String = when {
@@ -500,50 +601,66 @@ class OZKeyInputMethod : InputMethodService() {
         key == "tboth" -> "Asl + tarjima"
         key == "tx" -> "✕"
         key == "tok" -> "✓"
-        key == "ctitle" -> "📋  Bufer"
-        key == "cclear" -> "🗑 Tozalash"
+        key == "cchip" -> chipLabel()
+        key == "ctab:0" -> "Tarix"
+        key == "ctab:1" -> "⭐ Sevimlilar"
+        key == "ctab:2" -> "📌 Mahkamlangan"
+        key == "cclear" -> "🗑"
         key == "⇧" -> if (capsLock) "⇪" else "⇧"
+        key.startsWith("sg:") -> sugg.getOrElse(key.substring(3).toInt()) { "" }
         key.startsWith("t:") -> tileLabel(key)
         key.startsWith("cat:") -> EmojiData.categories[key.substring(4).toInt()].first
         key.startsWith("emo:") -> key.substring(4)
         key.startsWith("ph:") -> phrases().getOrElse(key.substring(3).toInt()) { "" }
-        key.startsWith("cp:") -> clipLabel(key.substring(3).toInt())
-        key.startsWith("cpin:") -> if (clipItems.getOrNull(key.substring(5).toInt())?.pinned == true) "★" else "☆"
+        key.startsWith("cp:") -> ""     // kartochka matni makeKey ichida (clipSpan)
+        key.startsWith("cfav:") -> if (clipItems.getOrNull(key.substring(5).toInt())?.fav == true) "★" else "☆"
+        key.startsWith("cpin:") -> if (clipItems.getOrNull(key.substring(5).toInt())?.pinned == true) "📌" else "📍"
         key.startsWith("cdel:") -> "✕"
+        key.startsWith("cask:") -> "Bu matnni o'chirmoqchimisiz?"
+        key.startsWith("cno:") -> "Bekor qilish"
+        key.startsWith("cyes:") -> "O'chirish"
         key == "pad" -> ""
         else -> if (key.length <= 2 && key.any { it.isLetter() } && caps) key.uppercase() else key
     }
 
-    private fun makeKey(key: String): View {
+    private fun makeKey(key: String, left: String? = null, right: String? = null): View {
         if (key == "pad" || key == "sp") return View(this)
+        if (key == "cchip" && !chipVisible()) return View(this)
         val special = isSpecialKey(key)
         val scrollish = isScrollKey(key) || key.startsWith("cat:")
+        // Bo'shliq: tasodifiy bosilmasin deb faqat barmoq tugma ICHIDA ko'tarilganda ishlaydi
+        val deferred = key == "space"
         val langKey = key == "LANGLAT" || key == "LANGCYR"
         val activeLang = (key == "LANGLAT" && lang.code == "UZ") || (key == "LANGCYR" && lang.code == "UZC")
         val isLetterKey = key.length <= 2 && key.any { it.isLetter() }
         val clipText = key.startsWith("cp:")
+        val tabKey = key.startsWith("ctab:")
+        val activeTab = tabKey && key.substring(5).toIntOrNull() == clipTab
+        val askKey = key.startsWith("cask:") || key.startsWith("cno:") || key.startsWith("cyes:")
         val bg = GradientDrawable().apply {
             cornerRadius = dp(10).toFloat()
-            setColor(if (special) theme.special else theme.key)
+            setColor(if (special && !activeTab) theme.special else theme.key)
             if (theme.stroke != 0) setStroke(dp(2), theme.stroke)
         }
         val label = TextView(this).apply {
-            text = labelFor(key)
+            text = if (clipText) clipSpan(key.substring(3).toInt()) else labelFor(key)
             textSize = when {
+                key.startsWith("sg:") -> 17f
                 key.startsWith("emo:") || key.startsWith("cat:") -> 24f
-                key.startsWith("t:") -> 11.5f
+                key.startsWith("t:") -> 12f
                 key.startsWith("ph:") -> 14f
                 clipText -> 14f
-                key.startsWith("cpin:") || key.startsWith("cdel:") -> 18f
+                key.startsWith("cpin:") || key.startsWith("cdel:") || key.startsWith("cfav:") -> 18f
+                tabKey || askKey -> 13f
                 key == "CLIP" -> 18f
                 langKey -> 16f
                 key == "TOOLS" || key == "HIDE" -> 18f
-                key == "ttgt" || key == "tboth" -> 13f
-                key == "ctitle" || key == "cclear" -> 14f
+                key == "ttgt" || key == "tboth" || key == "cchip" -> 13f
+                key == "cclear" -> 18f
                 key == "tok" || key == "tx" -> 20f
                 key == "⇧" || key == "⌫" -> 22f
                 key == "space" || special -> 14f
-                isLetterKey -> 23f * fontScale / 100f          // harflar: katta
+                isLetterKey -> 24f * fontScale / 100f          // harflar: katta
                 key.length == 1 && key[0].isDigit() -> 18f * fontScale / 100f
                 else -> 20f * fontScale / 100f
             }
@@ -552,31 +669,38 @@ class OZKeyInputMethod : InputMethodService() {
             includeFontPadding = false
             if (key.startsWith("t:") || key.startsWith("ph:")) { maxLines = 3 }
             if (clipText) { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
-            if (key == "ttgt" || key == "tboth") { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-            setTextColor(if (langKey && !activeLang) Color.argb(130, Color.red(theme.text), Color.green(theme.text), Color.blue(theme.text)) else theme.text)
-            typeface = Typeface.create(if (activeLang) "sans-serif-black" else "sans-serif-medium", Typeface.NORMAL)
+            if (key == "ttgt" || key == "tboth" || key == "cchip" || tabKey || askKey || key.startsWith("sg:")) { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
+            val dim = (langKey && !activeLang) || (tabKey && !activeTab)
+            setTextColor(if (dim) Color.argb(130, Color.red(theme.text), Color.green(theme.text), Color.blue(theme.text)) else theme.text)
+            typeface = Typeface.create(if (activeLang || activeTab) "sans-serif-black" else "sans-serif-medium", Typeface.NORMAL)
             background = bg
         }
-        // Butun katak (oraliqlar ham) bosiladi — "o'lik zona" yo'q.
+        // Butun katak (oraliqlar ham) bosiladi — "o'lik zona" yo'q. Bo'shliq tugmasi bundan mustasno:
+        // uning atrofida kichik bo'sh joy bor, shuning uchun chetga tegib ketsangiz probel yozilmaydi.
         val cell = FrameLayout(this).apply {
-            setPadding(dp(2), dp(2), dp(2), dp(2))
+            if (deferred) setPadding(dp(6), dp(5), dp(6), dp(5)) else setPadding(dp(2), dp(3), dp(2), dp(3))
             addView(label, FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
-        if (key == "ctitle") return cell     // faqat yozuv — bosilmaydi
-        // Aylantiriladigan ro'yxatlarda tasodifiy bosilmasin: tugma ACTION_UP da ishlaydi.
+        if (key.startsWith("cask:")) return cell     // faqat savol yozuvi — bosilmaydi
+        if (key == "⇧") { shiftView = label; shiftBg = bg }
+        if (key.startsWith("sg:")) sgViews.add(label)
+        val smartOk = isLetterKey && !special && layer == Layer.LETTERS && !trMode
+        if (isLetterKey && !special && layer == Layer.LETTERS) letterViews.add(Pair(label, key))
+        // Aylantiriladigan ro'yxatlarda va bo'shliqda tasodifiy bosilmasin: ACTION_UP da ishlaydi.
         var downX = 0f
         var downY = 0f
         var moved = false
-        cell.setOnTouchListener { v, e ->
+        val touchView: View = if (deferred) label else cell
+        touchView.setOnTouchListener { v, e ->
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX; downY = e.rawY; moved = false
                     label.alpha = 0.5f
-                    if (haptic) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (scrollish) { /* ACTION_UP da */ }
+                    if (haptic && !deferred) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (scrollish || deferred) { /* ACTION_UP da */ }
                     else if (key == "⌫") { doBackspace(); handler.postDelayed(repeatDelete, 400) }
-                    else handleKey(key)
+                    else handleKey(if (smartOk) smartPick(key, left, right, e.x, v.width) else key)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (Math.abs(e.rawY - downY) > dp(10) || Math.abs(e.rawX - downX) > dp(10)) moved = true
@@ -585,6 +709,10 @@ class OZKeyInputMethod : InputMethodService() {
                     label.alpha = 1f
                     handler.removeCallbacks(repeatDelete)
                     if (scrollish && !moved) handleKey(key)
+                    else if (deferred && !moved && e.x >= 0f && e.y >= 0f && e.x <= v.width && e.y <= v.height) {
+                        if (haptic) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        handleKey(key)
+                    }
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     label.alpha = 1f
@@ -595,6 +723,17 @@ class OZKeyInputMethod : InputMethodService() {
         }
         if (!scrollish && !langKey && !key.startsWith("t:")) keyViews.add(Pair(label, bg))
         return cell
+    }
+
+    /** Shift / avto-katta harf: butun klaviaturani qayta qurmasdan faqat yozuvlarni almashtiradi. */
+    private fun refreshCaps() {
+        drawnCaps = caps
+        letterViews.forEach { (v, k) -> v.text = if (caps) k.uppercase() else k }
+        shiftView?.text = if (capsLock) "⇪" else "⇧"
+        shiftBg?.setColor(
+            if (caps || capsLock) Color.argb(80, Color.red(theme.text), Color.green(theme.text), Color.blue(theme.text))
+            else theme.special
+        )
     }
 
     private fun hue(h: Float): Int =
@@ -717,8 +856,18 @@ class OZKeyInputMethod : InputMethodService() {
             ic.commitText(undo, 1)
             return
         }
+        val cr = corr
+        if (cr != null) {              // avto-tuzatishni bekor qilish: asl so'z qaytadi va qayta tuzatilmaydi
+            corr = null
+            ic.deleteSurroundingText(cr.corrected.length + cr.boundary.length, 0)
+            ic.commitText(cr.original, 1)
+            WordModel.keep(cr.original)
+            scheduleSuggest()
+            return
+        }
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
         ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+        scheduleSuggest()
     }
 
     /** Boshlang'ich katta harf (gap boshi) holatini sozlaydi. */
@@ -728,7 +877,7 @@ class OZKeyInputMethod : InputMethodService() {
         val want = ic != null && !isRawField() &&
             ic.getCursorCapsMode(currentInputEditorInfo?.inputType ?: 0) != 0
         caps = want
-        if (caps != drawnCaps) render()
+        if (caps != drawnCaps) refreshCaps()
     }
 
     private fun commit(text: String) {
@@ -807,13 +956,15 @@ class OZKeyInputMethod : InputMethodService() {
         when (key) {
             "t:TR" -> { trMode = true; trBuf.clear(); resetLive(); render() }
             "t:FIELD" -> { render(); if (ic != null) doTranslate(ic) }
-            "t:CLIP" -> openClipboard()
             "t:PHR" -> { layer = Layer.PHRASES; render() }
             "t:CONV" -> { render(); if (ic != null) doConvert(ic) }
             "t:COPY" -> { render(); if (ic != null) doCopyStandard(ic) }
+            "t:UNDO" -> { render(); sendUndoRedo(false) }
+            "t:REDO" -> { render(); sendUndoRedo(true) }
             "t:THEME" -> {
                 val all = Themes.cycle(this)
-                val next = all[(all.indexOfFirst { it.id == theme.id } + 1) % all.size]
+                val cur = prefs().getString("theme", Themes.DEFAULT_ID)
+                val next = all[(all.indexOfFirst { it.id == cur } + 1) % all.size]
                 prefs().edit().putString("theme", next.id).apply()
                 loadPrefs(); render()
                 toast("Mavzu: " + next.name)
@@ -822,17 +973,6 @@ class OZKeyInputMethod : InputMethodService() {
                 prefs().edit().putString("theme", if (theme.id == "dark") "light" else "dark").apply()
                 loadPrefs(); render()
             }
-            "t:HAPTIC" -> {
-                haptic = !haptic
-                prefs().edit().putBoolean("haptic", haptic).apply()
-                layer = Layer.TOOLS; render()
-            }
-            "t:ONE" -> {
-                oneHand = !oneHand
-                prefs().edit().putBoolean("onehand", oneHand).apply()
-                applyPad(); render()
-            }
-            "t:TGT" -> { cycleTarget(); layer = Layer.TOOLS; render() }
             else -> {
                 render()
                 startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -843,6 +983,7 @@ class OZKeyInputMethod : InputMethodService() {
     private fun handleKey(key: String) {
         val ic = currentInputConnection ?: return
         pendingUndo = null
+        corr = null
         when {
             key == "⇧" -> {
                 val now = SystemClock.uptimeMillis()
@@ -850,10 +991,11 @@ class OZKeyInputMethod : InputMethodService() {
                 else if (caps && now - lastShiftTap < 400) capsLock = true
                 else caps = !caps
                 lastShiftTap = now
-                render()
+                refreshCaps()
             }
             key == "↵" -> {
                 if (trMode) { translateBuffer(false); return }
+                boundaryPrep(ic)
                 val info = currentInputEditorInfo
                 val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
                 val noAction = info != null && (info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
@@ -865,7 +1007,17 @@ class OZKeyInputMethod : InputMethodService() {
                 }
                 syncCaps()
             }
-            key == "space" -> { commit(" "); if (!trMode) syncCaps() }
+            key == "space" -> {
+                if (trMode) commit(" ")
+                else {
+                    val cr = boundaryPrep(ic)
+                    commit(" ")
+                    if (cr != null) corr = Corr(cr.first, cr.second, " ")
+                    syncCaps()
+                    scheduleSuggest()
+                }
+            }
+            key.startsWith("sg:") -> pickSuggestion(key.substring(3).toInt())
             key == "🌐" -> {
                 val all = Languages.active(this)
                 val i = all.indexOfFirst { it.code == lang.code }
@@ -874,6 +1026,11 @@ class OZKeyInputMethod : InputMethodService() {
             key == "LANGLAT" -> setLang("UZ")
             key == "LANGCYR" -> setLang("UZC")
             key == "CLIP" -> openClipboard()
+            key == "cchip" -> {
+                recentClip?.let { commit(it) }
+                recentUsed = true
+                render()
+            }
             key == "?123" -> { layer = Layer.SYMBOLS; render() }
             key == "ABC" -> { layer = Layer.LETTERS; render(); syncCaps() }
             key == "😊" -> { layer = Layer.EMOJI; render() }
@@ -883,17 +1040,33 @@ class OZKeyInputMethod : InputMethodService() {
             key == "tboth" -> translateBuffer(true)
             key == "tx" -> { trMode = false; trBuf.clear(); resetLive(); render(); syncCaps() }
             key == "tok" -> translateBuffer(false)
-            key == "cclear" -> { ClipStore.clearUnpinned(this); render() }
+            key.startsWith("ctab:") -> { clipTab = key.substring(5).toInt(); clipDelAsk = -1L; render() }
+            key == "cclear" -> { ClipStore.clearHistory(this); render() }   // Sevimli/Mahkamlanganlar qoladi
             key.startsWith("cp:") -> {
-                clipItems.getOrNull(key.substring(3).toInt())?.let { commit(it.text) }
+                clipItems.getOrNull(key.substring(3).toInt())?.let { item ->
+                    ClipStore.text(this, item.id)?.let { commit(it) }
+                }
                 layer = Layer.LETTERS; render()
             }
+            key.startsWith("cfav:") -> {
+                clipItems.getOrNull(key.substring(5).toInt())?.let { ClipStore.toggleFav(this, it.id) }
+                render()
+            }
             key.startsWith("cpin:") -> {
-                clipItems.getOrNull(key.substring(5).toInt())?.let { ClipStore.togglePin(this, it.text) }
+                clipItems.getOrNull(key.substring(5).toInt())?.let { ClipStore.togglePin(this, it.id) }
                 render()
             }
             key.startsWith("cdel:") -> {
-                clipItems.getOrNull(key.substring(5).toInt())?.let { ClipStore.remove(this, it.text) }
+                clipItems.getOrNull(key.substring(5).toInt())?.let { item ->
+                    // Sevimli / Mahkamlangan matn tasdiqsiz o'chmaydi; oddiy tarix — darhol
+                    if (item.saved) clipDelAsk = item.id else ClipStore.remove(this, item.id)
+                }
+                render()
+            }
+            key.startsWith("cno:") -> { clipDelAsk = -1L; render() }
+            key.startsWith("cyes:") -> {
+                clipItems.getOrNull(key.substring(5).toInt())?.let { ClipStore.remove(this, it.id) }
+                clipDelAsk = -1L
                 render()
             }
             key.startsWith("t:") -> handleTile(key)
@@ -910,12 +1083,18 @@ class OZKeyInputMethod : InputMethodService() {
                     if (lang.uzDigraph) convertBufDigraph()
                     refreshBuf()
                 } else {
+                    val punct = value.length == 1 && value[0] in ".,!?;:"
+                    val cr = if (punct) boundaryPrep(ic) else null
                     ic.commitText(value, 1)
-                    if (lang.uzDigraph && !isRawField()) convertDigraph()
+                    if (cr != null) corr = Corr(cr.first, cr.second, value)
+                    // sh, ch, g', o' juftliklarini faqat kerak bo'lganda tekshiramiz (tezlik)
+                    if (lang.uzDigraph && (value.equals("h", true) || value in apostrophes) && !isRawField()) convertDigraph()
                 }
                 if (!capsLock) caps = false
-                syncCaps()
-                if (caps != drawnCaps) render()
+                // Harfdan keyin gap boshi bo'lishi mumkin emas — tizimdan so'rab o'tirmaymiz
+                if (!value.last().isLetterOrDigit()) syncCaps()
+                if (caps != drawnCaps) refreshCaps()
+                if (!trMode) scheduleSuggest()
             }
         }
     }
@@ -945,6 +1124,7 @@ class OZKeyInputMethod : InputMethodService() {
         super.onStartInputView(info, restarting)
         loadPrefs()
         pendingUndo = null
+        corr = null
         trMode = false; trBuf.clear(); resetLive()
         layer = Layer.LETTERS
         if (::keyboard.isInitialized) applyPad()
@@ -957,17 +1137,127 @@ class OZKeyInputMethod : InputMethodService() {
         animator?.cancel()
         handler.removeCallbacks(repeatDelete)
         handler.removeCallbacks(liveRunnable)
+        handler.removeCallbacks(suggestRunnable)
+        WordModel.save()
     }
 
     override fun onDestroy() {
         animator?.cancel()
         handler.removeCallbacks(liveRunnable)
+        handler.removeCallbacks(suggestRunnable)
+        WordModel.save()
         if (clipListenerOn) {
             try {
                 (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).removePrimaryClipChangedListener(clipListener)
             } catch (e: Exception) { /* e'tiborsiz */ }
         }
         super.onDestroy()
+    }
+
+    // ---------- so'z takliflari, avto-tuzatish, Smart Touch, Undo/Redo ----------
+
+    private fun applyCase(orig: String, w: String): String = when {
+        orig.length > 1 && orig.all { !it.isLetter() || it.isUpperCase() } -> w.uppercase()
+        orig.isNotEmpty() && orig[0].isUpperCase() -> w.replaceFirstChar { it.uppercase() }
+        else -> w
+    }
+
+    /** So'z tugaganda (probel / tinish belgisi / Enter): so'zni o'rganadi va ISHONCHLI xatoni tuzatadi. */
+    private fun boundaryPrep(ic: InputConnection): Pair<String, String>? {
+        if (!predictOn && !autoCorrectOn) return null
+        if (lang.code != "UZ" || isRawField()) return null
+        val before = ic.getTextBeforeCursor(80, 0)?.toString() ?: return null
+        val cx = WordModel.parse(before)
+        val w = cx.prefix
+        if (w.length < 2) return null
+        if (autoCorrectOn && w.none { it == '\'' }) {
+            val capOk = !w[0].isUpperCase() || cx.sentenceStart
+            val mixed = w.drop(1).any { it.isUpperCase() } && !w.all { !it.isLetter() || it.isUpperCase() }
+            if (capOk && !mixed) {
+                val fix = WordModel.autoFix(w.lowercase(), cx.prev, neighbors)
+                if (fix != null) {
+                    val out = applyCase(w, fix)
+                    ic.deleteSurroundingText(w.length, 0)
+                    ic.commitText(out, 1)
+                    WordModel.learn(out, cx.prev)
+                    return Pair(w, out)
+                }
+            }
+        }
+        if (predictOn) WordModel.learn(w, cx.prev)
+        return null
+    }
+
+    private fun scheduleSuggest() {
+        if (!sgBarOn() || layer != Layer.LETTERS || trMode) return
+        handler.removeCallbacks(suggestRunnable)
+        handler.postDelayed(suggestRunnable, 30)
+    }
+
+    private fun updateSuggestions() {
+        if (sgViews.isEmpty()) return
+        var list: List<String> = emptyList()
+        val ic = currentInputConnection
+        if (ic != null && sgBarOn() && layer == Layer.LETTERS && !trMode && !isRawField()) {
+            val before = ic.getTextBeforeCursor(80, 0)?.toString().orEmpty()
+            val cx = WordModel.parse(before)
+            list = if (cx.prefix.isEmpty()) {
+                WordModel.next(cx.prev).map { if (cx.sentenceStart || caps) it.replaceFirstChar { c -> c.uppercase() } else it }
+            } else {
+                WordModel.complete(cx.prefix, cx.prev).map { applyCase(cx.prefix, it) }
+            }
+        }
+        sugg = list
+        sgViews.forEachIndexed { i, v -> v.text = sugg.getOrElse(i) { "" } }
+    }
+
+    private fun pickSuggestion(i: Int) {
+        val s = sugg.getOrNull(i)?.takeIf { it.isNotEmpty() } ?: return
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(80, 0)?.toString().orEmpty()
+        val cx = WordModel.parse(before)
+        ic.beginBatchEdit()
+        if (cx.prefix.isNotEmpty()) ic.deleteSurroundingText(cx.prefix.length, 0)
+        ic.commitText("$s ", 1)
+        ic.endBatchEdit()
+        WordModel.learn(s, cx.prev)
+        if (!capsLock) caps = false
+        syncCaps()
+        if (caps != drawnCaps) refreshCaps()
+        scheduleSuggest()
+    }
+
+    /** Barmoq tugma CHETIGA tushsa: faqat yozilgan harf lug'atda hech qanday so'zga olib bormasa-yu,
+     *  qo'shni harf olib borsagina qo'shni tanlanadi. Aniq bosilgan tugmaga xalaqit bermaydi. */
+    private fun smartPick(key: String, left: String?, right: String?, x: Float, w: Int): String {
+        if (!smartTouchOn || lang.code != "UZ" || w <= 0 || key.length != 1) return key
+        val r = x / w
+        val cand = (if (r < 0.18f) left else if (r > 0.82f) right else null) ?: return key
+        if (cand.length != 1 || !cand[0].isLetter()) return key
+        val ic = currentInputConnection ?: return key
+        if (isRawField()) return key
+        val cx = WordModel.parse(ic.getTextBeforeCursor(40, 0)?.toString().orEmpty())
+        if (cx.prefix.length < 2) return key
+        val p = cx.prefix.lowercase()
+        return if (!WordModel.isPrefix(p + key.lowercase()) && WordModel.isPrefix(p + cand.lowercase())) cand else key
+    }
+
+    /** Ctrl+Z / Ctrl+Shift+Z. Aksar matn maydonlari (Android 8+) qo'llab-quvvatlaydi. */
+    private fun sendUndoRedo(redo: Boolean) {
+        val ic = currentInputConnection ?: return
+        val now = SystemClock.uptimeMillis()
+        var meta = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        if (redo) meta = meta or KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_Z, 0, meta))
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, 0, meta))
+    }
+
+    override fun onUpdateSelection(
+        oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        scheduleSuggest()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
