@@ -1,3 +1,10 @@
+# ÖZKEY Android — 0.8.1
+
+- **Do'konlarga mos build:** tarjima funksiyasi o'chirildi (rasmiy bo'lmagan Google manzili olib tashlandi). Tarjima tugmalari `ozkeyTranslateUrl` berilmaguncha ko'rinmaydi.
+- **INTERNET ruxsati olib tashlandi** — ilova internetga chiqmaydi; maxfiylik siyosati va do'kon matnlari shunga moslandi.
+- Release build o'z kalitingiz bo'lmasa **to'xtaydi** (debug kalit bilan imzolangan APK do'konga yuklanmasin). `tools/make-keystore.sh` + 4 ta GitHub siri.
+- Tarjimani qaytarish: `backend/worker.js` ni joylang, `gradle.properties` ga `ozkeyTranslateUrl=https://...` yozing, AndroidManifest.xml ga INTERNET ruxsatini qaytaring, maxfiylik siyosatini yangilang.
+
 # ÖZKEY Android — 0.8.0
 
 ## 0.8.0 — Aqlli yozish

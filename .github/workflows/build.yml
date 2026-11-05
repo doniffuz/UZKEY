@@ -30,9 +30,13 @@ jobs:
           OZKEY_KEY_ALIAS: ${{ secrets.OZKEY_KEY_ALIAS }}
           OZKEY_KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
         run: |
-          if [ "$HAS_KS" != "true" ]; then unset OZKEY_KEYSTORE; fi
+          if [ "$HAS_KS" != "true" ]; then
+            echo "::error::Release APK o'z kalitingiz bilan imzolanishi SHART. tools/make-keystore.sh ni ishga tushirib, 4 ta GitHub sirini (OZKEY_KEYSTORE_B64, OZKEY_STORE_PASSWORD, OZKEY_KEY_ALIAS, OZKEY_KEY_PASSWORD) qo'shing."
+            exit 1
+          fi
           gradle assembleRelease bundleRelease --stacktrace
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: OZKEY-build
           path: |

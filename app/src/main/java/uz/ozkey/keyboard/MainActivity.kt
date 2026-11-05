@@ -258,7 +258,7 @@ class MainActivity : Activity() {
             body.addView(gap(8))
             listOf(
                 "🔤" to "Lotin ⇄ Kirill — bitta tugma bilan",
-                "🌍" to "Jonli tarjima — yozganingizda tarjimasi ko'rinadi",
+                "⚡" to "So'z takliflari va xavfsiz avto-tuzatish",
                 "📋" to "Bufer tarixi — nusxalanganlar saqlanadi",
                 "🎨" to "32 mavzu va galereyadan o'z rasmingiz"
             ).forEach { (e, t) ->
@@ -714,12 +714,9 @@ class MainActivity : Activity() {
         p.addView(languagesCard())
 
         val c3 = card()
-        c3.addView(tv("🌍 Tarjima va maxfiylik", 17f, cInk, true))
-        c3.addView(tv("Asboblar (⚙) → Tarjima: yozing — tarjimasi pastda ko'rinadi, ✓ matnga yozadi, «Asl + tarjima» ikkalasini. " +
-            "Maqsad tili panelning 🌍 chipi bilan almashadi.", 13f, cMuted))
-        c3.addView(gap(8))
-        c3.addView(tv("Yozganingiz serverga yuborilmaydi. Faqat tarjima ishlatilganda tanlangan matn tarjima xizmatiga ketadi. " +
-            "Parol, email va havola maydonlarida avto-almashtirish va tarjima o'chirilgan.", 13f, cMuted))
+        c3.addView(tv("🔒 Maxfiylik", 17f, cInk, true))
+        c3.addView(tv("ÖZKEY internetga chiqmaydi: ilovada INTERNET ruxsati yo'q. Yozganingiz, o'rganilgan so'zlar va bufer faqat telefoningizda qoladi. " +
+            "Parol, email va havola maydonlarida avto-almashtirish va o'rganish o'chirilgan.", 13f, cMuted))
         p.addView(c3)
 
         p.addView(developerCard())

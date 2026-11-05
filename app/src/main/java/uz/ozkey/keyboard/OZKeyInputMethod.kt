@@ -118,7 +118,7 @@ class OZKeyInputMethod : InputMethodService() {
     private val tileKeys = listOf(
         "t:TR", "t:FIELD", "t:PHR", "t:CONV", "t:UNDO",
         "t:REDO", "t:COPY", "t:THEME", "t:NIGHT", "t:SET"
-    )
+    ).filter { Translator.available || (it != "t:TR" && it != "t:FIELD") }
     private val specials = setOf(
         "⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space",
         "CLIP", "LANGLAT", "LANGCYR", "TOOLS", "HIDE",
@@ -470,7 +470,7 @@ class OZKeyInputMethod : InputMethodService() {
         val v = liveView ?: return
         when {
             trBuf.isEmpty() -> { v.text = "Tarjima shu yerda ko'rinadi"; v.alpha = 0.5f }
-            liveFailed && liveText.isEmpty() -> { v.text = "Internet yo'q yoki tarjima xizmati javob bermadi"; v.alpha = 0.7f }
+            liveFailed && liveText.isEmpty() -> { v.text = "Internet yo'q yoki tarjima xizmati javob bermadi. Trafik tejash rejimini tekshiring"; v.alpha = 0.7f }
             liveText.isEmpty() -> { v.text = "⏳ Tarjima qilinmoqda…"; v.alpha = 0.6f }
             else -> { v.text = liveText; v.alpha = if (liveBusy) 0.55f else 1f }
         }
