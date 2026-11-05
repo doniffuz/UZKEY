@@ -5,7 +5,7 @@
 - [ ] GitHub → Settings → Secrets: `OZKEY_KEYSTORE_B64` (`base64 ozkey.jks`), `OZKEY_STORE_PASSWORD`, `OZKEY_KEY_ALIAS`, `OZKEY_KEY_PASSWORD`
 - [ ] CI `.aab` beradi → Play Console'ga yuklang (APK emas, AAB talab qilinadi)
 - [ ] `targetSdk` — Play joriy talabini tekshiring (hozir 35); talab oshsa `app/build.gradle.kts` da yangilang
-- [ ] Sinov premium (logo 5 marta bosish) kodini olib tashlang
+- [x] Sinov premium kodi 0.6.0 da olib tashlangan (barcha mavzular bepul)
 - [ ] Yangi shaxsiy akkauntlarda Play ko'pincha 12+ sinovchi bilan 14 kunlik yopiq sinov talab qiladi — Console'da tekshiring
 
 ## 2. Do'kon sahifasi
@@ -18,7 +18,7 @@
 
 ## 3. Pul topish (klaviatura uchun xavfsiz yo'llar)
 - ❌ **Klaviatura ichiga reklama qo'ymang.** Yozilayotgan matn bor joyda reklama — Play siyosati va maxfiylik nuqtai nazaridan rad etilish/bloklanish xavfi yuqori.
-- ✅ **Obuna / bir martalik premium** (Google Play Billing): premium mavzular, stikerlar — `Premium.kt` shunga tayyor.
+- ✅ **Obuna / bir martalik premium** (Google Play Billing): kelajakda maxsus mavzular, stikerlar uchun (hozir hammasi bepul).
 - ✅ **Ilova ichidagi (klaviaturadan tashqari) reklama:** Mavzular/Sozlama ekranida banner yoki "reklama ko'rib mavzuni 24 soatga ochish" (Rewarded, AdMob). AdMob ID ni o'zingiz olasiz; foydalanuvchi roziligi (UMP/GDPR) va Data safety'ga reklama SDK qo'shilganini yozing.
 - ✅ Stiker paketlari, maxsus mavzular sotish.
 
@@ -32,3 +32,6 @@
 
 ## 6. Maxfiylik siyosati shabloni (o'zbekcha)
 **ÖZKEY maxfiylik siyosati.** ÖZKEY yozgan matningizni to'plamaydi, saqlamaydi va sotmaydi. Klaviatura barcha matnni qurilmada qayta ishlaydi. Faqat siz «→» tarjima tugmasini bosganda tanlangan matn tarjima uchun serverimizga, u yerdan tarjima xizmatiga yuboriladi; matn saqlanmaydi. Parol, email va havola maydonlarida tarjima o'chirilgan. Ilova sozlamalari (mavzu, til) faqat qurilmada saqlanadi. Aloqa: [sizning email].
+
+
+Uptodown va boshqa do'konlar uchun tayyor matnlar: `store/UPTODOWN.md`.

@@ -23,7 +23,7 @@ jobs:
       - name: Decode keystore (ixtiyoriy)
         if: env.HAS_KS == 'true'
         run: echo "${{ secrets.OZKEY_KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/ozkey.jks
-      - name: Build release AAB (Play Market)
+      - name: Build release APK + AAB (Uptodown / Play Market)
         env:
           OZKEY_KEYSTORE: ${{ runner.temp }}/ozkey.jks
           OZKEY_STORE_PASSWORD: ${{ secrets.OZKEY_STORE_PASSWORD }}
@@ -31,10 +31,11 @@ jobs:
           OZKEY_KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
         run: |
           if [ "$HAS_KS" != "true" ]; then unset OZKEY_KEYSTORE; fi
-          gradle bundleRelease --stacktrace
+          gradle assembleRelease bundleRelease --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: OZKEY-build
           path: |
             app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab

@@ -11,8 +11,8 @@ android {
         applicationId = "uz.ozkey.keyboard"
         minSdk = 23
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.5.0"
+        versionCode = 7
+        versionName = "0.6.0"
         // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
         val translateUrl = (project.findProperty("ozkeyTranslateUrl") as String?) ?: ""
         buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
@@ -21,7 +21,7 @@ android {
         buildConfigField("String", "PACKS_URL", "\"$packsUrl\"")
     }
 
-    // Play Market uchun imzo: CI sirlari (secrets) orqali beriladi. Berilmasa — imzosiz build.
+    // Release imzosi: CI sirlari (secrets) orqali beriladi (tools/make-keystore.sh ga qarang).
     signingConfigs {
         val ks = System.getenv("OZKEY_KEYSTORE")
         if (ks != null) {
@@ -39,7 +39,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfigs.findByName("release")?.let { signingConfig = it }
+            // Kalit berilsa — o'z kalitingiz bilan imzolanadi (Uptodown/Play uchun SHART). Berilmasa — sinov uchun debug kalit.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
