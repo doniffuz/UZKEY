@@ -235,7 +235,7 @@ class OZKeyInputMethod : InputMethodService() {
             row === topBar -> 48
             row === sgKeys -> 34
             layer == Layer.LETTERS && row === digits -> 42
-            layer == Layer.LETTERS && row === lang.extra -> 50
+            layer == Layer.LETTERS && row === lang.extra -> 46
             else -> 56
         }
         return (base * screenFactor() * scale / 100f).toInt()
@@ -297,7 +297,7 @@ class OZKeyInputMethod : InputMethodService() {
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
         key == "sp" -> 1.5f
-        layer == Layer.LETTERS && (key == "Ğ" || key == "Ö" || key == "Ş" || key == "Ç") -> 1.25f
+        layer == Layer.LETTERS && (key == "Ğ" || key == "Ö" || key == "Ş" || key == "Ç") -> 0.85f
         key == "cchip" -> 2.8f
         key == "ttgt" -> 3f
         key == "tboth" -> 2.2f
@@ -672,7 +672,7 @@ class OZKeyInputMethod : InputMethodService() {
                 key == "tok" || key == "tx" -> 20f
                 key == "⇧" || key == "⌫" -> 22f
                 key == "space" || special -> 14f
-                isLetterKey -> 26f * fontScale / 100f * (0.5f + 0.5f * screenFactor())   // harflar: katta
+                isLetterKey -> 28f * fontScale / 100f * (0.5f + 0.5f * screenFactor())   // harflar: katta
                 key.length == 1 && key[0].isDigit() -> 19f * fontScale / 100f
                 else -> 20f * fontScale / 100f
             }

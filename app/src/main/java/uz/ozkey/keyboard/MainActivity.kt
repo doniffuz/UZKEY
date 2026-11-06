@@ -216,8 +216,8 @@ class MainActivity : Activity() {
         h.removeAllViews()
         val en = isEnabled()
         val sel = en && isSelected()
-        h.addView(stepRow(1, "ÖZKEY ni yoqing", en))
-        h.addView(stepRow(2, "Klaviaturani tanlang", sel))
+        h.addView(stepRow(1, "ÖZKEY klaviaturasiga ruxsat bering", en))
+        h.addView(stepRow(2, "ÖZKEY ni tanlang", sel))
         h.addView(gap(10))
         when {
             !en -> h.addView(primaryBtn("Sozlamalarni ochish") { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) })
@@ -233,7 +233,7 @@ class MainActivity : Activity() {
 
     private fun setupCard(auto: Boolean): LinearLayout {
         val c = card()
-        c.addView(tv("Ulash — 2 qadam", 17f, cInk, true))
+        c.addView(tv("ÖZKEY ni bir marta yoqing", 17f, cInk, true))
         c.addView(gap(6))
         val holder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(holder)
@@ -277,7 +277,7 @@ class MainActivity : Activity() {
                 })
             }
         } else {
-            body.addView(tv("Ulash — 2 qadam", 24f, cInk, true))
+            body.addView(tv("ÖZKEY ni yoqish", 24f, cInk, true))
             body.addView(gap(8))
             val holder = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             body.addView(holder)
@@ -402,6 +402,7 @@ class MainActivity : Activity() {
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "application/vnd.android.package-archive"
                 putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, "ÖZKEY — O‘zbek klaviaturasi. Tez, qulay va reklamasiz.")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(Intent.createChooser(send, "ÖZKEY APKni ulashish"))
