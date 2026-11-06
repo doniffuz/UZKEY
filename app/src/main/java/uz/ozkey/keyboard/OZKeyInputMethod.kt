@@ -232,7 +232,7 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun rowHeightDp(row: List<String>): Int {
         val base = when {
-            row === topBar -> 36
+            row === topBar -> 48
             row === sgKeys -> 34
             layer == Layer.LETTERS && row === digits -> 42
             layer == Layer.LETTERS && row === lang.extra -> 50
@@ -664,9 +664,9 @@ class OZKeyInputMethod : InputMethodService() {
                 clipText -> 14f
                 key.startsWith("cpin:") || key.startsWith("cdel:") || key.startsWith("cfav:") -> 18f
                 tabKey || askKey -> 13f
-                key == "CLIP" -> 18f
-                langKey -> 16f
-                key == "TOOLS" || key == "HIDE" -> 18f
+                key == "CLIP" -> 19f
+                langKey -> 18f
+                key == "TOOLS" || key == "HIDE" -> 19f
                 key == "ttgt" || key == "tboth" || key == "cchip" -> 13f
                 key == "cclear" -> 18f
                 key == "tok" || key == "tx" -> 20f

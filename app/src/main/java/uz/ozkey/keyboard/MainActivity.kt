@@ -395,6 +395,21 @@ class MainActivity : Activity() {
         return p
     }
 
+    /** O'rnatilgan ayni APK faylini boshqa ilovalarga ulashadi. Telegramga majburan yubormaydi. */
+    private fun shareInstalledApk() {
+        try {
+            val uri = Uri.parse("content://$packageName.apkshare/app.apk")
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "application/vnd.android.package-archive"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(send, "ÖZKEY APKni ulashish"))
+        } catch (e: Exception) {
+            toast("APKni ulashib bo'lmadi")
+        }
+    }
+
     private fun openUrl(url: String) {
         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         catch (e: Exception) { toast("Ochib bo'lmadi") }
@@ -406,12 +421,8 @@ class MainActivity : Activity() {
         c.addView(tv("❤️ ÖZKEY sizga yoqdimi?", 17f, cInk, true))
         c.addView(tv("Ilova bepul va reklamasiz. Do'stlaringizga ulashing yoki rivojiga hissa qo'shing.", 13f, cMuted)
             .apply { setPadding(0, dp(4), 0, dp(10)) })
-        c.addView(primaryBtn("📤 Do'stlarga ulashish") {
-            val link = if (BuildConfig.STORE_URL.isNotEmpty()) BuildConfig.STORE_URL else "https://t.me/Doniku_Admin"
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "ÖZKEY — o'zbek klaviaturasi: so'z takliflari, bufer, Lotin⇄Kirill, 30+ mavzu.\n$link")
-            }, "Ulashish"))
+        c.addView(primaryBtn("📦 APKni do'stlarga ulashish") {
+            shareInstalledApk()
         })
         if (BuildConfig.STORE_URL.isNotEmpty()) {
             c.addView(gap(8))

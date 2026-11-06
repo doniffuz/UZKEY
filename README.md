@@ -1,4 +1,4 @@
-# ÖZKEY Android — 0.8.2
+# ÖZKEY Android — 0.9.0
 
 - **Do'konlarga mos build:** tarjima funksiyasi o'chirildi (rasmiy bo'lmagan Google manzili olib tashlandi). Tarjima tugmalari `ozkeyTranslateUrl` berilmaguncha ko'rinmaydi.
 - **INTERNET ruxsati olib tashlandi** — ilova internetga chiqmaydi; maxfiylik siyosati va do'kon matnlari shunga moslandi.

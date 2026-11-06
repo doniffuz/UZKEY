@@ -29,7 +29,7 @@ class KeyTheme(
 )
 
 object Themes {
-    const val DEFAULT_ID = "samarkand"
+    const val DEFAULT_ID = "aurora"
     const val PHOTO_ID = "photo"
     const val AUTO_ID = "auto"   // telefon Kun/Tun rejimiga qarab Yorug' yoki Qora
 

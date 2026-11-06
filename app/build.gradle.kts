@@ -11,8 +11,8 @@ android {
         applicationId = "uz.ozkey.keyboard"
         minSdk = 23
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.8.2"
+        versionCode = 14
+        versionName = "0.9.0"
         // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
         val translateUrl = (project.findProperty("ozkeyTranslateUrl") as String?) ?: ""
         buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
