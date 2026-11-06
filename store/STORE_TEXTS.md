@@ -1,6 +1,6 @@
-# ÖZKEY 0.8.1 — do'konlar uchun matnlar
+# ÖZKEY 0.8.2 — do'konlar uchun matnlar
 
-Versiya: **0.8.1 (versionCode 12)**, paket: `uz.ozkey.keyboard`. Kategoriya: Tools. Yosh: 3+.
+Versiya: **0.8.2 (versionCode 13)**, paket: `uz.ozkey.keyboard`. Kategoriya: Tools. Yosh: 3+.
 Bu versiyada tarjima funksiyasi yo'q va ilova internetga chiqmaydi (INTERNET ruxsati olib tashlangan).
 
 ## Qisqa tavsif
@@ -56,9 +56,9 @@ Maxfiylik: ilovada internet ruxsati yo'q. Yozganingiz, o'rganilgan so'zlar, bufe
 
 Конфиденциальность: у приложения нет доступа в интернет. Всё, что вы набираете, выученные слова, буфер обмена и фон остаются на телефоне. Без рекламы и слежки. В полях пароля, email и ссылок автозамена и обучение отключены.
 
-## What's new (0.8.1)
-- **EN:** `Smoother typing and a cleaner, privacy-first build: the app no longer needs internet access.`
-- **UZ:** `Yozish yanada qulay, ilova endi internetga ulanmaydi.`
+## What's new (0.8.2)
+- **EN:** `More accurate typing: bigger keys and tap areas, tighter spacing, faster response, better fit on any screen. Smart Touch is now off by default.`
+- **UZ:** `Yozish aniqroq: kattaroq tugmalar va bosish zonasi, kamroq bo'shliq, tezroq reaksiya, har qanday ekranga moslashadi. Smart Touch endi standart holatda o'chiq.`
 
 ## Eslatma
 - Banner/skrinshotlarda «Tarjima» yozuvi bo'lmasin (bu versiyada tarjima yo'q).

@@ -1,6 +1,6 @@
 # ÖZKEY — Maxfiylik siyosati
 
-**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-05  ·  **Versiya:** 0.8.1
+**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-05  ·  **Versiya:** 0.8.2
 
 ÖZKEY — o'zbek tilidagi klaviatura ilovasi. Klaviatura siz yozgan matnni ko'radi, shuning uchun uni qanday ishlatishimiz haqida ochiq yozamiz.
 

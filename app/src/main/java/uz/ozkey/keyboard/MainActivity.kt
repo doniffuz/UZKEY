@@ -58,10 +58,10 @@ class MainActivity : Activity() {
     internal val cDeep = Color.parseColor("#0B3C5D")
     internal val cGold = Color.parseColor("#D9A93E")
     internal val cGoldDark = Color.parseColor("#9A7418")
-    internal val cCream = Color.parseColor("#F7F2E8")
-    internal val cInk = Color.parseColor("#1D2B33")
+    internal val cCream = Color.parseColor("#F3F6F7")
+    internal val cInk = Color.parseColor("#14232B")
     internal val cMuted = Color.parseColor("#6F7C84")
-    internal val cLine = Color.parseColor("#E8E0CF")
+    internal val cLine = Color.parseColor("#E3E9EC")
     internal val cOk = Color.parseColor("#1E9E6A")
 
     private fun prefs() = getSharedPreferences("ozkey", Context.MODE_PRIVATE)
@@ -89,26 +89,28 @@ class MainActivity : Activity() {
         text = label; textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(cTurq, cDeep))
-            .apply { cornerRadius = dp(14).toFloat() }
-        setPadding(dp(16), dp(13), dp(16), dp(13))
+            .apply { cornerRadius = dp(28).toFloat() }
+        elevation = dp(3).toFloat()
+        setPadding(dp(20), dp(15), dp(20), dp(15))
         setOnClickListener { onClick() }
     }
 
     internal fun outlineBtn(label: String, onClick: () -> Unit) = TextView(this).apply {
         text = label; textSize = 14f; setTextColor(cTurq); gravity = Gravity.CENTER
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        background = rounded(Color.WHITE, 14).apply { setStroke(dp(1), cTurq) }
-        setPadding(dp(14), dp(11), dp(14), dp(11))
+        background = rounded(Color.argb(20, 14, 124, 134), 28)
+        setPadding(dp(16), dp(12), dp(16), dp(12))
         setOnClickListener { onClick() }
     }
 
     internal fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded(Color.WHITE, 20).apply { setStroke(dp(1), cLine) }
-        setPadding(dp(16), dp(14), dp(16), dp(16))
+        background = rounded(Color.WHITE, 24)
+        elevation = dp(2).toFloat()
+        setPadding(dp(18), dp(16), dp(18), dp(18))
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { bottomMargin = dp(12) }
+        ).apply { bottomMargin = dp(14) }
     }
 
     internal fun section(t: String) = tv(t.uppercase(), 12f, cGoldDark, true).apply {
@@ -118,8 +120,8 @@ class MainActivity : Activity() {
 
     internal fun field(hintText: String) = EditText(this).apply {
         hint = hintText; setHintTextColor(cMuted); setTextColor(cInk); textSize = 15f
-        background = rounded(cCream, 12).apply { setStroke(dp(1), cLine) }
-        setPadding(dp(14), dp(11), dp(14), dp(11))
+        background = rounded(cCream, 16)
+        setPadding(dp(16), dp(13), dp(16), dp(13))
     }
 
     private fun logo(size: Int) = ImageView(this).apply {
@@ -264,9 +266,14 @@ class MainActivity : Activity() {
             ).forEach { (e, t) ->
                 body.addView(LinearLayout(this).apply {
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(6), 0, dp(6))
+                    background = rounded(Color.WHITE, 18)
+                    elevation = dp(1).toFloat()
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
                     addView(tv(e, 22f).apply { setPadding(0, 0, dp(14), 0) })
                     addView(tv(t, 15f, cInk))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = dp(8) }
                 })
             }
         } else {
@@ -323,25 +330,27 @@ class MainActivity : Activity() {
 
     private fun navBar(): View {
         val bar = LinearLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
-            setPadding(dp(8), dp(6), dp(8), dp(6) + bottomInset)
+            background = rounded(Color.WHITE, 32)
+            elevation = dp(8).toFloat()
+            setPadding(dp(6), dp(6), dp(6), dp(6))
         }
         val tabs = listOf("🏠" to "Bosh", "🎨" to "Mavzular", "📋" to "Bufer", "⚙️" to "Sozlama")
         tabs.forEachIndexed { i, (icon, name) ->
             val on = i == tab
             bar.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-                setPadding(0, dp(6), 0, dp(6))
-                background = if (on) rounded(Color.argb(28, 14, 124, 134), 14) else null
-                addView(tv(icon, 19f).apply { alpha = if (on) 1f else 0.55f })
-                addView(tv(name, 11f, if (on) cTurq else cMuted, on))
+                setPadding(0, dp(8), 0, dp(8))
+                background = if (on) GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(cTurq, cDeep))
+                    .apply { cornerRadius = dp(26).toFloat() } else null
+                addView(tv(icon, 18f).apply { alpha = if (on) 1f else 0.6f })
+                addView(tv(name, 11f, if (on) Color.WHITE else cMuted, on))
                 setOnClickListener { tab = i; showMain() }
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
         }
-        val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        wrap.addView(View(this).apply { setBackgroundColor(cLine) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)))
-        wrap.addView(bar)
-        return wrap
+        return FrameLayout(this).apply {
+            setPadding(dp(16), dp(6), dp(16), dp(10) + bottomInset)
+            addView(bar)
+        }
     }
 
     internal fun pageBox() = LinearLayout(this).apply {
@@ -382,7 +391,37 @@ class MainActivity : Activity() {
             cm.setPrimaryClip(ClipData.newPlainText("ozkey", out.text.toString())); toast("Nusxalandi")
         })
         p.addView(c3)
+        p.addView(supportCard())
         return p
+    }
+
+    private fun openUrl(url: String) {
+        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        catch (e: Exception) { toast("Ochib bo'lmadi") }
+    }
+
+    /** Daromad va o'sish: baho, ulashish, ixtiyoriy qo'llab-quvvatlash (INTERNET ruxsati kerak emas). */
+    private fun supportCard(): View {
+        val c = card()
+        c.addView(tv("❤️ ÖZKEY sizga yoqdimi?", 17f, cInk, true))
+        c.addView(tv("Ilova bepul va reklamasiz. Do'stlaringizga ulashing yoki rivojiga hissa qo'shing.", 13f, cMuted)
+            .apply { setPadding(0, dp(4), 0, dp(10)) })
+        c.addView(primaryBtn("📤 Do'stlarga ulashish") {
+            val link = if (BuildConfig.STORE_URL.isNotEmpty()) BuildConfig.STORE_URL else "https://t.me/Doniku_Admin"
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "ÖZKEY — o'zbek klaviaturasi: so'z takliflari, bufer, Lotin⇄Kirill, 30+ mavzu.\n$link")
+            }, "Ulashish"))
+        })
+        if (BuildConfig.STORE_URL.isNotEmpty()) {
+            c.addView(gap(8))
+            c.addView(outlineBtn("⭐ Baho berish") { openUrl(BuildConfig.STORE_URL) })
+        }
+        if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
+            c.addView(gap(8))
+            c.addView(outlineBtn("☕ Dasturchini qo'llab-quvvatlash") { openUrl(BuildConfig.SUPPORT_URL) })
+        }
+        return c
     }
 
     private fun openTelegram() {
@@ -460,9 +499,10 @@ class MainActivity : Activity() {
     private fun themeCard(t: KeyTheme, selected: Boolean): View {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(Color.WHITE, 14).apply {
-                if (selected) setStroke(dp(2), cTurq) else setStroke(dp(1), cLine)
+            background = rounded(Color.WHITE, 18).apply {
+                if (selected) setStroke(dp(2), cTurq)
             }
+            elevation = dp(if (selected) 4 else 1).toFloat()
             setPadding(dp(6), dp(6), dp(6), dp(6))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }
@@ -698,7 +738,7 @@ class MainActivity : Activity() {
         c1.addView(toggle("Bir qo'lda yozish rejimi", "onehand", false))
         c1.addView(toggle("So'z takliflari (3 ta, o'zingiz yozganlarni o'rganadi)", "predict", true))
         c1.addView(toggle("Avto-tuzatish (faqat ishonchli xatolar, ⌫ bekor qiladi)", "autocorrect", true))
-        c1.addView(toggle("Smart Touch (tugma chetiga bosilganda aniqlash)", "smarttouch", true))
+        c1.addView(toggle("Smart Touch (tugma chetiga bosilganda aniqlash)", "smarttouch", false))
         c1.addView(tv("Takliflar va o'rganilgan so'zlar faqat shu telefonda saqlanadi, serverga yuborilmaydi. Parol, email va havola maydonlarida o'rganilmaydi.", 12f, cMuted))
         c1.addView(outlineBtn("O'rganilgan so'zlarni o'chirish") { WordModel.clearUser(this); toast("O'rganilgan so'zlar o'chirildi") })
         p.addView(c1)

@@ -64,7 +64,7 @@ class OZKeyInputMethod : InputMethodService() {
     // So'z takliflari / avto-tuzatish / Smart Touch (hammasi qurilmada, serverga hech narsa ketmaydi)
     private var predictOn = true
     private var autoCorrectOn = true
-    private var smartTouchOn = true
+    private var smartTouchOn = false
     private class Corr(val original: String, val corrected: String, val boundary: String)
     private var corr: Corr? = null
     private var neighbors: Map<Char, Set<Char>> = emptyMap()
@@ -181,7 +181,7 @@ class OZKeyInputMethod : InputMethodService() {
         lang = Languages.active(this).firstOrNull { it.code == code } ?: Languages.UZ
         predictOn = prefs().getBoolean("predict", true)
         autoCorrectOn = prefs().getBoolean("autocorrect", true)
-        smartTouchOn = prefs().getBoolean("smarttouch", true)
+        smartTouchOn = prefs().getBoolean("smarttouch", false)
         if (lang.code == "UZ") {
             WordModel.init(this)
             neighbors = WordModel.buildNeighbors(lang.rows)
@@ -201,7 +201,7 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun applyPad() {
         val extra = if (oneHand) (resources.displayMetrics.widthPixels * 0.25f).toInt() else 0
-        keyboard.setPadding(dp(1), dp(3), dp(1) + extra, dp(3) + navBottom)
+        keyboard.setPadding(0, 0, extra, navBottom)   // chetda "o'lik zona" yo'q: tugmalar ekran chetigacha bosiladi
     }
 
     override fun onCreateInputView(): View {
@@ -221,15 +221,24 @@ class OZKeyInputMethod : InputMethodService() {
         return keyboard
     }
 
+    /** Ekran balandligiga qarab klaviatura nisbatini avtomatik moslaydi (kichik telefon / katta telefon / planshet / yotiq holat). */
+    private fun screenFactor(): Float {
+        val dm = resources.displayMetrics
+        val hDp = dm.heightPixels / dm.density
+        val wDp = dm.widthPixels / dm.density
+        return if (wDp > hDp) (hDp / 800f).coerceIn(0.55f, 0.9f)
+        else (hDp / 780f).coerceIn(0.86f, 1.12f)
+    }
+
     private fun rowHeightDp(row: List<String>): Int {
         val base = when {
             row === topBar -> 36
             row === sgKeys -> 34
-            layer == Layer.LETTERS && row === digits -> 40
-            layer == Layer.LETTERS && row === lang.extra -> 44
-            else -> 52
+            layer == Layer.LETTERS && row === digits -> 42
+            layer == Layer.LETTERS && row === lang.extra -> 50
+            else -> 56
         }
-        return (base * scale / 100f).toInt()
+        return (base * screenFactor() * scale / 100f).toInt()
     }
 
     // ---------- fon ----------
@@ -288,6 +297,7 @@ class OZKeyInputMethod : InputMethodService() {
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
         key == "sp" -> 1.5f
+        layer == Layer.LETTERS && (key == "Ğ" || key == "Ö" || key == "Ş" || key == "Ç") -> 1.25f
         key == "cchip" -> 2.8f
         key == "ttgt" -> 3f
         key == "tboth" -> 2.2f
@@ -642,7 +652,9 @@ class OZKeyInputMethod : InputMethodService() {
             setColor(if (special && !activeTab) theme.special else theme.key)
             if (theme.stroke != 0) setStroke(dp(2), theme.stroke)
         }
-        val label = TextView(this).apply {
+        val label = object : TextView(this@OZKeyInputMethod) {
+            override fun hasOverlappingRendering() = false
+        }.apply {
             text = if (clipText) clipSpan(key.substring(3).toInt()) else labelFor(key)
             textSize = when {
                 key.startsWith("sg:") -> 17f
@@ -660,8 +672,8 @@ class OZKeyInputMethod : InputMethodService() {
                 key == "tok" || key == "tx" -> 20f
                 key == "⇧" || key == "⌫" -> 22f
                 key == "space" || special -> 14f
-                isLetterKey -> 24f * fontScale / 100f          // harflar: katta
-                key.length == 1 && key[0].isDigit() -> 18f * fontScale / 100f
+                isLetterKey -> 26f * fontScale / 100f * (0.5f + 0.5f * screenFactor())   // harflar: katta
+                key.length == 1 && key[0].isDigit() -> 19f * fontScale / 100f
                 else -> 20f * fontScale / 100f
             }
             gravity = if (clipText) Gravity.CENTER_VERTICAL or Gravity.START else Gravity.CENTER
@@ -678,7 +690,7 @@ class OZKeyInputMethod : InputMethodService() {
         // Butun katak (oraliqlar ham) bosiladi — "o'lik zona" yo'q. Bo'shliq tugmasi bundan mustasno:
         // uning atrofida kichik bo'sh joy bor, shuning uchun chetga tegib ketsangiz probel yozilmaydi.
         val cell = FrameLayout(this).apply {
-            if (deferred) setPadding(dp(6), dp(5), dp(6), dp(5)) else setPadding(dp(2), dp(3), dp(2), dp(3))
+            if (deferred) setPadding(dp(6), dp(5), dp(6), dp(5)) else setPadding(dp(1), dp(2), dp(1), dp(2))
             addView(label, FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
@@ -696,11 +708,12 @@ class OZKeyInputMethod : InputMethodService() {
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX; downY = e.rawY; moved = false
-                    label.alpha = 0.5f
-                    if (haptic && !deferred) v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    // Avval harf yoziladi, keyin tebranish/rang (reaksiya tezroq)
                     if (scrollish || deferred) { /* ACTION_UP da */ }
                     else if (key == "⌫") { doBackspace(); handler.postDelayed(repeatDelete, 400) }
                     else handleKey(if (smartOk) smartPick(key, left, right, e.x, v.width) else key)
+                    label.alpha = 0.5f
+                    if (haptic && !deferred) keyboard.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (Math.abs(e.rawY - downY) > dp(10) || Math.abs(e.rawX - downX) > dp(10)) moved = true

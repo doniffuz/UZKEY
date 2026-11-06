@@ -11,14 +11,19 @@ android {
         applicationId = "uz.ozkey.keyboard"
         minSdk = 23
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.8.1"
+        versionCode = 13
+        versionName = "0.8.2"
         // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
         val translateUrl = (project.findProperty("ozkeyTranslateUrl") as String?) ?: ""
         buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
         // Qo'shimcha til paketlari ro'yxati (ixtiyoriy): ozkeyPacksUrl=https://.../index.json
         val packsUrl = (project.findProperty("ozkeyPacksUrl") as String?) ?: ""
         buildConfigField("String", "PACKS_URL", "\"$packsUrl\"")
+        // Do'kon havolasi (baho/ulashish) va qo'llab-quvvatlash havolasi (Click/Payme/Buy Me a Coffee). Bo'sh bo'lsa tugma ko'rinmaydi.
+        val storeUrl = (project.findProperty("ozkeyStoreUrl") as String?) ?: ""
+        buildConfigField("String", "STORE_URL", "\"$storeUrl\"")
+        val supportUrl = (project.findProperty("ozkeySupportUrl") as String?) ?: ""
+        buildConfigField("String", "SUPPORT_URL", "\"$supportUrl\"")
     }
 
     // Release imzosi: CI sirlari (secrets) orqali beriladi (tools/make-keystore.sh ga qarang).
