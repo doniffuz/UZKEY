@@ -12,7 +12,7 @@ android {
         minSdk = 23
         targetSdk = 35
         versionCode = 15
-        versionName = "0.9.2"
+        versionName = "0.9.3"
         // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
         val translateUrl = (project.findProperty("ozkeyTranslateUrl") as String?) ?: ""
         buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
