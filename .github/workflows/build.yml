@@ -24,17 +24,18 @@ jobs:
         if: env.HAS_KS == 'true'
         run: echo "${{ secrets.OZKEY_KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/ozkey.jks
       - name: Build release APK + AAB (Uptodown / Play Market)
+        if: env.HAS_KS == 'true'
         env:
           OZKEY_KEYSTORE: ${{ runner.temp }}/ozkey.jks
           OZKEY_STORE_PASSWORD: ${{ secrets.OZKEY_STORE_PASSWORD }}
           OZKEY_KEY_ALIAS: ${{ secrets.OZKEY_KEY_ALIAS }}
           OZKEY_KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
         run: |
-          if [ "$HAS_KS" != "true" ]; then
-            echo "::error::Release APK o'z kalitingiz bilan imzolanishi SHART. tools/make-keystore.sh ni ishga tushirib, 4 ta GitHub sirini (OZKEY_KEYSTORE_B64, OZKEY_STORE_PASSWORD, OZKEY_KEY_ALIAS, OZKEY_KEY_PASSWORD) qo'shing."
-            exit 1
-          fi
           gradle assembleRelease bundleRelease --stacktrace
+      - name: Release kaliti yoq (faqat debug APK yigildi)
+        if: env.HAS_KS != 'true'
+        run: |
+          echo "::notice::Release APK yigilmadi - 4 ta GitHub siri yoq. tools/make-keystore.sh ga qarang."
       - uses: actions/upload-artifact@v4
         if: always()
         with:

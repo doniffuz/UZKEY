@@ -31,16 +31,20 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.animation.LinearInterpolator
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class OZKeyInputMethod : InputMethodService() {
 
-    private enum class Layer { LETTERS, SYMBOLS, EMOJI, TOOLS, PHRASES, CLIPBOARD }
+    private enum class Layer { LETTERS, SYMBOLS, EMOJI, TOOLS, PHRASES, CLIPBOARD, FIX }
 
     private class Grabbed(val text: String, val hadSelection: Boolean, val before: Int, val after: Int)
 
@@ -60,6 +64,12 @@ class OZKeyInputMethod : InputMethodService() {
     private var translating = false
     private var pendingUndo: String? = null
     private var navBottom = 0
+    private var phraseCat = 0                 // ⚡ iboralar kategoriyasi
+    private var fixGrab: Grabbed? = null      // Text Fix: asl matn
+    private var fixOut = ""                   // Text Fix: tuzatilgan matn (tasdiqlanguncha qo'llanmaydi)
+    private var smartReplyOn = true
+    private val quickRow1 = listOf("q:+998", "q:@", "q:.com", "q:.uz", "q:https://")
+    private val quickRow2 = listOf("qdate", "qtime", "q:gmail.com", "q:www.")
 
     // So'z takliflari / avto-tuzatish / Smart Touch (hammasi qurilmada, serverga hech narsa ketmaydi)
     private var predictOn = true
@@ -116,13 +126,14 @@ class OZKeyInputMethod : InputMethodService() {
     // Tepa panel: 📋 bufer | O'z | Ўз | (yangi nusxa taklifi) | asboblar | yopish
     private val topBar = listOf("CLIP", "LANGLAT", "LANGCYR", "cchip", "TOOLS", "HIDE")
     private val tileKeys = listOf(
-        "t:TR", "t:FIELD", "t:PHR", "t:CONV", "t:UNDO",
+        "t:TR", "t:FIELD", "t:PHR", "t:FIX", "t:NUM", "t:CONV", "t:UNDO",
         "t:REDO", "t:COPY", "t:THEME", "t:NIGHT", "t:SET"
     ).filter { Translator.available || (it != "t:TR" && it != "t:FIELD") }
     private val specials = setOf(
         "⇧", "⌫", "↵", "?123", "ABC", "🌐", "😊", "space",
         "CLIP", "LANGLAT", "LANGCYR", "TOOLS", "HIDE",
-        "ttgt", "tboth", "tx", "tok", "cclear", "cchip"
+        "ttgt", "tboth", "tx", "tok", "cclear", "cchip",
+        "fno", "fyes", "pnew", "qdate", "qtime"
     )
     private val apostrophes = setOf("'", "’", "‘", "ʻ", "ʼ", "＇")
 
@@ -138,11 +149,12 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun isScrollKey(k: String) =
         k.startsWith("emo:") || k.startsWith("ph:") || k.startsWith("cp:") || k.startsWith("cpin:") || k.startsWith("cdel:") ||
-            k.startsWith("cfav:") || k.startsWith("cno:") || k.startsWith("cyes:")
+            k.startsWith("cfav:") || k.startsWith("cno:") || k.startsWith("cyes:") || k.startsWith("pdel:")
 
     private fun isSpecialKey(k: String) =
         k in specials || k.startsWith("sg:") || k.startsWith("cat:") || k.startsWith("t:") || k.startsWith("cpin:") || k.startsWith("cdel:") ||
-            k.startsWith("cfav:") || k.startsWith("ctab:") || k.startsWith("cask:") || k.startsWith("cno:") || k.startsWith("cyes:")
+            k.startsWith("cfav:") || k.startsWith("ctab:") || k.startsWith("cask:") || k.startsWith("cno:") || k.startsWith("cyes:") ||
+            k.startsWith("pcat:") || k.startsWith("pdel:") || k.startsWith("q:")
 
     private fun lettersRows(): List<List<String>> {
         val r = lang.rows
@@ -156,6 +168,8 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun symbolRows(): List<List<String>> = listOf(
         digits,
+        quickRow1,
+        quickRow2,
         listOf("@", "#", "\$", "%", "&", "-", "+", "(", ")", "/"),
         listOf("*", "\"", "'", ":", ";", "!", "?", "~", "⌫"),
         listOf("_", "=", "<", ">", "[", "]", "{", "}", "\\", "|"),
@@ -182,6 +196,7 @@ class OZKeyInputMethod : InputMethodService() {
         predictOn = prefs().getBoolean("predict", true)
         autoCorrectOn = prefs().getBoolean("autocorrect", true)
         smartTouchOn = prefs().getBoolean("smarttouch", false)
+        smartReplyOn = prefs().getBoolean("smartreply", true)
         if (lang.code == "UZ") {
             WordModel.init(this)
             neighbors = WordModel.buildNeighbors(lang.rows)
@@ -236,6 +251,7 @@ class OZKeyInputMethod : InputMethodService() {
             row === sgKeys -> 34
             layer == Layer.LETTERS && row === digits -> 42
             layer == Layer.LETTERS && row === lang.extra -> 34
+            row === quickRow1 || row === quickRow2 -> 40
             else -> 56
         }
         return (base * screenFactor() * scale / 100f).toInt()
@@ -275,6 +291,7 @@ class OZKeyInputMethod : InputMethodService() {
             Layer.TOOLS -> renderTools()
             Layer.PHRASES -> renderPhrases()
             Layer.CLIPBOARD -> renderClipboard()
+            Layer.FIX -> renderFix()
             Layer.SYMBOLS -> {
                 if (trMode) keyboard.addView(translateHeader())
                 symbolRows().forEach { keyboard.addView(buildRow(it, rowHeightDp(it))) }
@@ -308,6 +325,8 @@ class OZKeyInputMethod : InputMethodService() {
         key == "cclear" -> 0.9f
         key.startsWith("cask:") -> 4f
         key.startsWith("cno:") || key.startsWith("cyes:") -> 2f
+        key.startsWith("ph:") && phraseCat == QuickPhrases.MY -> 5f
+        key == "fyes" -> 2f
         key.startsWith("cp:") -> 6f
         else -> 1f
     }
@@ -347,17 +366,14 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun renderTools() {
         val h = (92 * scale / 100f).toInt()
-        tileKeys.chunked(5).forEach { keyboard.addView(buildRow(it, h)) }
+        tileKeys.chunked(if (tileKeys.size > 10) 6 else 5).forEach { keyboard.addView(buildRow(it, h)) }
         keyboard.addView(bottomBarRow())
     }
 
-    /** Tez ishlatiladigan iboralar (tanlangan yozuvga moslab). */
+    /** Tanlangan kategoriyadagi iboralar (tanlangan yozuvga moslab). «Mening» — foydalanuvchining o'zi yozganlari. */
     private fun phrases(): List<String> {
-        val base = listOf(
-            "Assalomu alaykum", "Va alaykum assalom", "Rahmat", "Iltimos", "Xayrli tong", "Xayrli kech",
-            "Yaxshimisiz?", "Hozir bandman, keyin yozaman", "Kechirasiz", "Xayr, ko'rishguncha",
-            "Bayramingiz muborak bo'lsin!", "Yo'ldaman", "Mayli, bo'ladi", "Telefon qiling", "Raqamingizni bering"
-        )
+        if (phraseCat == QuickPhrases.MY) return QuickPhrases.user(this)
+        val base = QuickPhrases.builtin(phraseCat)
         return when (lang.code) {
             "UZC" -> base.map { Script.latToCyr(it) }
             else -> base.map { Alphabet.toNew(it) }
@@ -366,16 +382,107 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun renderPhrases() {
         val h = (48 * scale / 100f).toInt()
+        val th = (38 * scale / 100f).toInt()
+        QuickPhrases.cats.indices.map { "pcat:$it" }.chunked(4).forEach { keyboard.addView(buildRow(it, th)) }
+        if (phraseCat == QuickPhrases.MY) keyboard.addView(buildRow(listOf("pnew"), th))
         val list = phrases()
         val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        list.indices.map { "ph:$it" }.chunked(2).forEach { chunk ->
-            grid.addView(buildRow(if (chunk.size == 1) chunk + "pad" else chunk, h))
+        if (phraseCat == QuickPhrases.MY) {
+            if (list.isEmpty()) {
+                grid.addView(TextView(this).apply {
+                    text = "Hali o'z iboralaringiz yo'q.\nMaydonga matn yozing va «＋ Maydondagi matnni saqlash» ni bosing."
+                    textSize = 14f
+                    gravity = Gravity.CENTER
+                    setTextColor(theme.text)
+                    alpha = 0.7f
+                    setPadding(dp(20), dp(20), dp(20), dp(20))
+                })
+            }
+            list.indices.forEach { grid.addView(buildRow(listOf("ph:$it", "pdel:$it"), h)) }
+        } else {
+            list.indices.map { "ph:$it" }.chunked(2).forEach { chunk ->
+                grid.addView(buildRow(if (chunk.size == 1) chunk + "pad" else chunk, h))
+            }
         }
         keyboard.addView(
             ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(grid) },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(h * 5))
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(h * 4))
         )
         keyboard.addView(bottomBarRow())
+    }
+
+    /** ✍️ Text Fix: asl va tuzatilgan matn yonma-yon; faqat «Qo'llash» bosilsa maydon o'zgaradi. */
+    private fun renderFix() {
+        fun card(title: String, body: String, fill: Int, stroke: Boolean, maxL: Int) = TextView(this).apply {
+            text = title + "\n" + body
+            textSize = 15f
+            maxLines = maxL
+            ellipsize = TextUtils.TruncateAt.END
+            setTextColor(theme.text)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            background = GradientDrawable().apply {
+                setColor(fill); cornerRadius = dp(12).toFloat()
+                if (stroke && theme.stroke != 0) setStroke(dp(1), theme.stroke)
+            }
+        }
+        val lp = { LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(4), dp(3), dp(4), dp(3)) } }
+        keyboard.addView(card("Asl matn:", fixGrab?.text.orEmpty(), theme.special, false, 3), lp())
+        keyboard.addView(card("✍️ Tuzatilgan:", fixOut, theme.key, true, 5), lp())
+        keyboard.addView(buildRow(listOf("fno", "fyes"), (52 * scale / 100f).toInt()))
+        keyboard.addView(bottomBarRow())
+    }
+
+    private fun startFix(ic: InputConnection?) {
+        if (ic == null || isRawField()) { toast("Bu maydonda matnni tuzatish o'chirilgan"); render(); return }
+        val g = grabText(ic)
+        if (g == null) { toast("Avval matn yozing yoki belgilang"); render(); return }
+        val out = try { TextFix.fix(g.text, g.text.none { it in 'Ѐ'..'ӿ' }) } catch (e: Exception) { g.text }
+        if (out == g.text) { toast("Tuzatish kerak emas ✓"); render(); return }
+        fixGrab = g; fixOut = out
+        layer = Layer.FIX
+        render()
+    }
+
+    private fun applyFix() {
+        val g = fixGrab
+        val out = fixOut
+        val ic = currentInputConnection
+        fixGrab = null; fixOut = ""
+        layer = Layer.LETTERS
+        if (g != null && ic != null) {
+            val now = grabText(ic)
+            if (now == null || now.text != g.text) toast("Matn o'zgargan, qayta urinib ko'ring")
+            else replaceText(ic, now, out)
+        }
+        render()
+        syncCaps()
+    }
+
+    /** Ibora qo'yiladi; shablondagi birinchi [joy] belgilanadi — ustidan yozsangiz almashadi. */
+    private fun insertPhrase(ic: InputConnection, text: String) {
+        ic.commitText(text, 1)
+        val s = text.indexOf('[')
+        val e = if (s >= 0) text.indexOf(']', s) else -1
+        if (s < 0 || e < 0) return
+        try {
+            val et = ic.getExtractedText(ExtractedTextRequest(), 0) ?: return
+            val end = et.startOffset + et.selectionStart
+            val begin = end - text.length + s
+            if (begin >= 0) ic.setSelection(begin, begin + (e - s + 1))
+        } catch (ex: Exception) { /* belgilash ishlamasa ham ibora qo'yilgan */ }
+    }
+
+    private fun saveQuickPhrase(ic: InputConnection) {
+        if (isRawField()) { toast("Bu maydondan saqlab bo'lmaydi"); return }
+        val t = grabText(ic)?.text?.trim().orEmpty()
+        if (t.isEmpty()) { toast("Avval maydonga matn yozing"); return }
+        toast(when (QuickPhrases.addUser(this, t)) {
+            0 -> "Saqlandi ✓"
+            2 -> "Bu ibora allaqachon bor"
+            3 -> "Iboralar to'ldi, ba'zilarini o'chiring"
+            else -> "Saqlab bo'lmadi"
+        })
+        render()
     }
 
     // ---------- bufer (clipboard) ----------
@@ -572,7 +679,9 @@ class OZKeyInputMethod : InputMethodService() {
     private fun tileLabel(key: String): String = when (key) {
         "t:TR" -> "🌍\nTarjima"
         "t:FIELD" -> "📝\nMaydon\n→ " + targetName(target)
-        "t:PHR" -> "💬\nIboralar"
+        "t:PHR" -> "⚡\nIboralar"
+        "t:FIX" -> "✍️\nMatnni\ntuzatish"
+        "t:NUM" -> "🔢\nRaqam /\nEmail"
         "t:CONV" -> "🔄\nLotin⇄\nKirill"
         "t:UNDO" -> "↶\nBekor\nqilish"
         "t:REDO" -> "↷\nQayta\nqilish"
@@ -621,7 +730,15 @@ class OZKeyInputMethod : InputMethodService() {
         key.startsWith("t:") -> tileLabel(key)
         key.startsWith("cat:") -> EmojiData.categories[key.substring(4).toInt()].first
         key.startsWith("emo:") -> key.substring(4)
-        key.startsWith("ph:") -> phrases().getOrElse(key.substring(3).toInt()) { "" }
+        key.startsWith("ph:") -> phrases().getOrElse(key.substring(3).toInt()) { "" }.replace('\n', ' ')
+        key.startsWith("pcat:") -> QuickPhrases.cats.getOrElse(key.substring(5).toInt()) { "" }
+        key == "pnew" -> "＋ Maydondagi matnni saqlash"
+        key.startsWith("pdel:") -> "✕"
+        key == "fno" -> "✕ Bekor qilish"
+        key == "fyes" -> "✓ Qo'llash"
+        key.startsWith("q:") -> key.substring(2)
+        key == "qdate" -> "📅 Sana"
+        key == "qtime" -> "🕒 Vaqt"
         key.startsWith("cp:") -> ""     // kartochka matni makeKey ichida (clipSpan)
         key.startsWith("cfav:") -> if (clipItems.getOrNull(key.substring(5).toInt())?.fav == true) "★" else "☆"
         key.startsWith("cpin:") -> if (clipItems.getOrNull(key.substring(5).toInt())?.pinned == true) "📌" else "📍"
@@ -644,8 +761,9 @@ class OZKeyInputMethod : InputMethodService() {
         val activeLang = (key == "LANGLAT" && lang.code == "UZ") || (key == "LANGCYR" && lang.code == "UZC")
         val isLetterKey = key.length <= 2 && key.any { it.isLetter() }
         val clipText = key.startsWith("cp:")
-        val tabKey = key.startsWith("ctab:")
-        val activeTab = tabKey && key.substring(5).toIntOrNull() == clipTab
+        val tabKey = key.startsWith("ctab:") || key.startsWith("pcat:")
+        val activeTab = (key.startsWith("ctab:") && key.substring(5).toIntOrNull() == clipTab) ||
+            (key.startsWith("pcat:") && key.substring(5).toIntOrNull() == phraseCat)
         val askKey = key.startsWith("cask:") || key.startsWith("cno:") || key.startsWith("cyes:")
         val bg = GradientDrawable().apply {
             cornerRadius = dp(10).toFloat()
@@ -662,7 +780,9 @@ class OZKeyInputMethod : InputMethodService() {
                 key.startsWith("t:") -> 12f
                 key.startsWith("ph:") -> 14f
                 clipText -> 14f
-                key.startsWith("cpin:") || key.startsWith("cdel:") || key.startsWith("cfav:") -> 18f
+                key.startsWith("cpin:") || key.startsWith("cdel:") || key.startsWith("cfav:") || key.startsWith("pdel:") -> 18f
+                key == "fyes" || key == "fno" || key == "pnew" -> 15f
+                key.startsWith("q:") || key == "qdate" || key == "qtime" -> 14f
                 tabKey || askKey -> 13f
                 key == "CLIP" -> 19f
                 langKey -> 18f
@@ -679,9 +799,10 @@ class OZKeyInputMethod : InputMethodService() {
             gravity = if (clipText) Gravity.CENTER_VERTICAL or Gravity.START else Gravity.CENTER
             if (clipText) setPadding(dp(12), 0, dp(8), 0)
             includeFontPadding = false
-            if (key.startsWith("t:") || key.startsWith("ph:")) { maxLines = 3 }
+            if (key.startsWith("t:")) { maxLines = 3 }
+            if (key.startsWith("ph:")) { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
             if (clipText) { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
-            if (key == "ttgt" || key == "tboth" || key == "cchip" || tabKey || askKey || key.startsWith("sg:")) { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
+            if (key == "ttgt" || key == "tboth" || key == "cchip" || tabKey || askKey || key.startsWith("sg:") || key.startsWith("q:") || key == "pnew") { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
             val dim = (langKey && !activeLang) || (tabKey && !activeTab)
             setTextColor(if (dim) Color.argb(130, Color.red(theme.text), Color.green(theme.text), Color.blue(theme.text)) else theme.text)
             typeface = Typeface.create(if (activeLang || activeTab) "sans-serif-black" else "sans-serif-medium", Typeface.NORMAL)
@@ -790,6 +911,16 @@ class OZKeyInputMethod : InputMethodService() {
             InputType.TYPE_CLASS_NUMBER -> v == InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> false
         }
+    }
+
+    /** Maxfiy maydon: parol/email/URL, yoki ilova "shaxsiylashtirmang" (inkognito) / "takliflarsiz" deb so'ragan.
+     *  Bunda takliflar, avto-tuzatish va O'RGANISH butunlay o'chiriladi. */
+    private fun privateField(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        if (isRawField()) return true
+        if ((info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0) return true
+        return (info.inputType and InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT &&
+            (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
     }
 
     private fun isMultiLineField(): Boolean =
@@ -970,6 +1101,8 @@ class OZKeyInputMethod : InputMethodService() {
             "t:TR" -> { trMode = true; trBuf.clear(); resetLive(); render() }
             "t:FIELD" -> { render(); if (ic != null) doTranslate(ic) }
             "t:PHR" -> { layer = Layer.PHRASES; render() }
+            "t:FIX" -> startFix(ic)
+            "t:NUM" -> { layer = Layer.SYMBOLS; render() }
             "t:CONV" -> { render(); if (ic != null) doConvert(ic) }
             "t:COPY" -> { render(); if (ic != null) doCopyStandard(ic) }
             "t:UNDO" -> { render(); sendUndoRedo(false) }
@@ -1082,12 +1215,20 @@ class OZKeyInputMethod : InputMethodService() {
                 clipDelAsk = -1L
                 render()
             }
+            key == "fyes" -> applyFix()
+            key == "fno" -> { fixGrab = null; fixOut = ""; layer = Layer.LETTERS; render(); syncCaps() }
+            key.startsWith("pcat:") -> { phraseCat = (key.substring(5).toIntOrNull() ?: 0).coerceIn(0, QuickPhrases.cats.size - 1); render() }
+            key == "pnew" -> saveQuickPhrase(ic)
+            key.startsWith("pdel:") -> { key.substring(5).toIntOrNull()?.let { QuickPhrases.removeUser(this, it) }; render() }
+            key.startsWith("q:") -> commit(key.substring(2))
+            key == "qdate" -> commit(SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date()))
+            key == "qtime" -> commit(SimpleDateFormat("HH:mm", Locale.US).format(Date()))
             key.startsWith("t:") -> handleTile(key)
             key.startsWith("cat:") -> { emojiCat = key.substring(4).toInt(); render() }
             key.startsWith("emo:") -> commit(key.substring(4))
             key.startsWith("ph:") -> {
-                phrases().getOrNull(key.substring(3).toInt())?.let { commit(it) }
-                layer = Layer.LETTERS; render()
+                phrases().getOrNull(key.substring(3).toIntOrNull() ?: -1)?.let { if (trMode) commit(it) else insertPhrase(ic, it) }
+                layer = Layer.LETTERS; render(); syncCaps()
             }
             else -> {
                 val value = if (caps && key.any { it.isLetter() }) key.uppercase() else key
@@ -1139,6 +1280,7 @@ class OZKeyInputMethod : InputMethodService() {
         pendingUndo = null
         corr = null
         trMode = false; trBuf.clear(); resetLive()
+        fixGrab = null; fixOut = ""
         layer = Layer.LETTERS
         if (::keyboard.isInitialized) applyPad()
         render()
@@ -1178,7 +1320,7 @@ class OZKeyInputMethod : InputMethodService() {
     /** So'z tugaganda (probel / tinish belgisi / Enter): so'zni o'rganadi va ISHONCHLI xatoni tuzatadi. */
     private fun boundaryPrep(ic: InputConnection): Pair<String, String>? {
         if (!predictOn && !autoCorrectOn) return null
-        if (lang.code != "UZ" || isRawField()) return null
+        if (lang.code != "UZ" || privateField()) return null
         val before = ic.getTextBeforeCursor(80, 0)?.toString() ?: return null
         val cx = WordModel.parse(before)
         val w = cx.prefix
@@ -1211,10 +1353,15 @@ class OZKeyInputMethod : InputMethodService() {
         if (sgViews.isEmpty()) return
         var list: List<String> = emptyList()
         val ic = currentInputConnection
-        if (ic != null && sgBarOn() && layer == Layer.LETTERS && !trMode && !isRawField()) {
+        if (ic != null && sgBarOn() && layer == Layer.LETTERS && !trMode && !privateField()) {
             val before = ic.getTextBeforeCursor(80, 0)?.toString().orEmpty()
             val cx = WordModel.parse(before)
-            list = if (cx.prefix.isEmpty()) {
+            // Maydon bo'sh va yaqinda xabar nusxalangan bo'lsa — qisqa javoblar (Smart Reply)
+            val clipMsg = recentClip
+            val replies = if (smartReplyOn && before.isBlank() && clipMsg != null &&
+                SystemClock.uptimeMillis() - recentClipAt < 600_000) SmartReply.suggest(clipMsg) else emptyList()
+            list = if (replies.isNotEmpty()) replies
+            else if (cx.prefix.isEmpty()) {
                 WordModel.next(cx.prev).map { if (cx.sentenceStart || caps) it.replaceFirstChar { c -> c.uppercase() } else it }
             } else {
                 WordModel.complete(cx.prefix, cx.prev).map { applyCase(cx.prefix, it) }

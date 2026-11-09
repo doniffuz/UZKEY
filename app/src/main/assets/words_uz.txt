@@ -38,7 +38,6 @@ agar
 yoki
 chunki
 shuning
-uchun
 ammo
 balki
 albatta
@@ -175,7 +174,6 @@ yana
 hali
 endi
 faqat
-balki
 bo'ldi
 bo'ladi
 bo'lmaydi
@@ -214,7 +212,6 @@ yomg'ir
 qor
 shamol
 quyosh
-oy
 yulduz
 osmon
 yer
@@ -260,24 +257,17 @@ omad
 sog'
 bo'ling
 xayrli
-tong
-kecha
-tun
 salomat
 ko'rishguncha
 marhamat
 xo'p
 mayli
 ha
-yo'q
-balki
-albatta
 ehtimol
 darhol
 tezda
 birdan
 asta
-sekin
 oxirgi
 birinchi
 ikkinchi
@@ -356,7 +346,6 @@ aytaman
 aytgan
 so'radi
 so'rayman
-javob
 bering
 kutaman
 kutdim
@@ -366,9 +355,6 @@ uchrashamiz
 ko'rishamiz
 gaplashamiz
 qo'ng'iroq
-qo'ng'iroq
-qilaman
-yozaman
 tayyor
 band
 bo'sh
@@ -388,7 +374,6 @@ yonida
 orasida
 oldida
 ketidan
-bilan
 birga
 yolg'iz
 hamma

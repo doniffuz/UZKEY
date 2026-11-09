@@ -75,7 +75,7 @@ object WordModel {
     }
 
     private fun score(w: String, prev: String?): Int {
-        var s = baseScore(w) + (userCnt[w] ?: 0) * 8
+        var s = baseScore(w) + (userCnt[w] ?: 0).coerceAtMost(30) * 12   // ko'p yozilgan shaxsiy so'z lug'at so'zlaridan yuqoriga chiqadi
         if (prev != null) s += (bi[prev]?.get(w) ?: 0) * 12
         return s
     }
@@ -199,6 +199,21 @@ object WordModel {
                 .putString("uw", sbW.toString()).putString("ub", sbB.toString()).apply()
             dirty = 0
         } catch (e: Exception) { }
+    }
+
+    /** Foydalanuvchi o'rgangan so'zlar (ko'p yozilgani birinchi). Faqat 2 va undan ko'p marta yozilganlar. */
+    @Synchronized
+    fun userWords(): List<Pair<String, Int>> =
+        userCnt.entries.filter { it.value >= 2 }.sortedByDescending { it.value }.map { Pair(it.key, it.value) }
+
+    /** Bitta shaxsiy so'zni o'chiradi (lug'atdagi so'z bo'lsa, faqat o'rganilgan hisobi nollanadi). */
+    @Synchronized
+    fun removeUserWord(w: String) {
+        userCnt.remove(w)
+        if (w !in base) dict.remove(w)
+        bi.values.forEach { it.remove(w) }
+        dirty++
+        save()
     }
 
     @Synchronized

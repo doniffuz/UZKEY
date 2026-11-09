@@ -1,3 +1,15 @@
+# ÖZKEY Android — 0.10.0 (versionCode 16)
+
+> DIQQAT: bu o'zgarishlar kompilyator va qurilmasiz yozilgan (Gradle/Android SDK bo'lmagan muhitda). Birinchi `gradle assembleDebug` va qurilmada sinov SHART.
+
+- **0.10.0 qo'shimchalar:** Text Fix `!!`, `??`, `..` ni normallashtiradi; Smart Reply'ga «Ha / Yo'q / Keyinroq / Salom / Qalaysiz» qoidalari; Sozlamada «Shaxsiy lug'atni ko'rish / so'z o'chirish»; `words_uz.txt` va `bigrams_uz.txt` dublikatlardan tozalandi (405 → 390 so'z, 91 bigram).
+- **✍️ Matnni tuzatish (Text Fix)** — 🔧 panelida. Internetsiz, qoidalar asosida: ortiqcha bo'shliq, tinish belgilari, salomdan keyin vergul, savol belgisi, bosh harf, aniq (noaniq emas) xatolar. Natija avval ko'rsatiladi, «✓ Qo'llash» bosilgandagina maydon o'zgaradi.
+- **⚡ Iboralar kategoriyalari:** Umumiy, Ariza, Maktab, Ish, Telegram, Savdo, Tabassum + **Mening** (o'zingiz maydondan saqlaysiz, ✕ bilan o'chirasiz). Shablondagi [joy] qo'yilgach belgilanadi.
+- **🔢 Raqam/Email tez tugmalari** (?123 sahifasida va asboblarda): +998, @, .com, .uz, https://, gmail.com, www., 📅 sana, 🕒 vaqt.
+- **💬 Smart Reply:** maydon bo'sh bo'lganda va yaqinda xabar NUSXALANGAN bo'lsa, takliflar panelida qisqa javoblar. Sozlamada o'chiriladi.
+- **Shaxsiy so'zlar** endi lug'at so'zlaridan yuqoriga chiqadi (ko'p yozilsa).
+- **Maxfiylik:** ilova «inkognito/shaxsiylashtirmang» (IME_FLAG_NO_PERSONALIZED_LEARNING) yoki «takliflarsiz» deb so'ragan maydonlarda takliflar, avto-tuzatish va o'rganish o'chadi.
+
 # ÖZKEY Android — 0.9.0
 
 - **Do'konlarga mos build:** tarjima funksiyasi o'chirildi (rasmiy bo'lmagan Google manzili olib tashlandi). Tarjima tugmalari `ozkeyTranslateUrl` berilmaguncha ko'rinmaydi.

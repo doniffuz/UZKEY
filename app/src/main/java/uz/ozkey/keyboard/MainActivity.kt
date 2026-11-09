@@ -72,6 +72,19 @@ class MainActivity : Activity() {
         val id = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD) ?: return false
         return id.startsWith("$packageName/")
     }
+    private fun showUserWords() {
+        val list = WordModel.userWords().take(200)
+        if (list.isEmpty()) { toast("Shaxsiy lug'at hali bo'sh"); return }
+        val items = list.map { "${it.first}  ·  ${it.second}" }.toTypedArray()
+        android.app.AlertDialog.Builder(this)
+            .setTitle("So'zni o'chirish uchun bosing")
+            .setItems(items) { _, i ->
+                list.getOrNull(i)?.let { WordModel.removeUserWord(it.first); toast("O'chirildi: " + it.first) }
+            }
+            .setNegativeButton("Yopish", null)
+            .show()
+    }
+
     internal fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
 
     // ---------- kichik yordamchilar ----------
@@ -751,7 +764,9 @@ class MainActivity : Activity() {
         c1.addView(toggle("So'z takliflari (3 ta, o'zingiz yozganlarni o'rganadi)", "predict", true))
         c1.addView(toggle("Avto-tuzatish (faqat ishonchli xatolar, ⌫ bekor qiladi)", "autocorrect", true))
         c1.addView(toggle("Smart Touch (tugma chetiga bosilganda aniqlash)", "smarttouch", false))
+        c1.addView(toggle("Smart Reply (nusxalangan xabarga qisqa javob taklifi)", "smartreply", true))
         c1.addView(tv("Takliflar va o'rganilgan so'zlar faqat shu telefonda saqlanadi, serverga yuborilmaydi. Parol, email va havola maydonlarida o'rganilmaydi.", 12f, cMuted))
+        c1.addView(outlineBtn("📖 Shaxsiy lug'atni ko'rish / so'z o'chirish") { showUserWords() })
         c1.addView(outlineBtn("O'rganilgan so'zlarni o'chirish") { WordModel.clearUser(this); toast("O'rganilgan so'zlar o'chirildi") })
         p.addView(c1)
 
@@ -762,6 +777,14 @@ class MainActivity : Activity() {
         c2.addView(toggle("Parol/OTP/karta raqamini saqlamaslik", "clipsafe", true))
         c2.addView(outlineBtn("Tarixni tozalash") { ClipStore.clearHistory(this); toast("Tarix tozalandi (Sevimlilar qoldi)") })
         p.addView(c2)
+
+        val c2b = card()
+        c2b.addView(tv("⚡ Iboralar · ✍️ Matnni tuzatish · 🌍 Tarjima", 17f, cInk, true))
+        c2b.addView(tv("⚡ Iboralar: klaviaturadagi ⚙ → «Iboralar». «Mening» bo'limiga o'z matningizni saqlaysiz.\n" +
+            "✍️ Matnni tuzatish: ⚙ → «Matnni tuzatish». Avval natija ko'rsatiladi, siz tasdiqlaysiz. Internet kerak emas.\n" +
+            (if (Translator.available) "🌍 Tarjima yoqilgan: matn sizning serveringizga yuboriladi."
+            else "🌍 Tarjima hozir O'CHIQ: server ulanmagan (ilova internetga chiqmaydi)."), 13f, cMuted))
+        p.addView(c2b)
 
         p.addView(languagesCard())
 
