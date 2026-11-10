@@ -103,7 +103,9 @@ class BuferTab(private val a: MainActivity) {
         listBox = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
         p.addView(listBox)
 
-        statView = a.tv("", 12f, a.cMuted).apply { setPadding(dp(4), dp(4), dp(4), 0) }
+        val statusLabel: TextView = a.tv("", 12f, a.cMuted)
+        statusLabel.setPadding(dp(4), dp(4), dp(4), 0)
+        statView = statusLabel
         p.addView(statView)
 
         refreshTabs()
@@ -167,10 +169,10 @@ class BuferTab(private val a: MainActivity) {
         box.removeAllViews()
         val items = ClipStore.list(a, tab, cat, query, LIST_LIMIT)
         if (items.isEmpty()) {
-            box.addView(a.tv(emptyText(), 14f, a.cMuted).apply {
-                gravity = Gravity.CENTER
-                setPadding(dp(12), dp(28), dp(12), dp(28))
-            })
+            val emptyLabel: TextView = a.tv(emptyText(), 14f, a.cMuted)
+            emptyLabel.gravity = Gravity.CENTER
+            emptyLabel.setPadding(dp(12), dp(28), dp(12), dp(28))
+            box.addView(emptyLabel)
         } else {
             items.forEach { box.addView(itemCard(it)) }
             if (items.size >= LIST_LIMIT) {
