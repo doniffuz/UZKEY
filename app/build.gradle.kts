@@ -13,6 +13,7 @@ android {
         targetSdk = 36
         versionCode = 18
         versionName = "1.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
         val translateUrl = ((project.findProperty("ozkeyTranslateUrl") as String?) ?: "").trim()
         buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
@@ -41,6 +42,7 @@ android {
 
     buildTypes {
         release {
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -51,11 +53,21 @@ android {
 
     buildFeatures { buildConfig = true }
 
+    // JVM unit testlarida android.* stub'lari xato bermasin (testlar toza mantiqni tekshiradi)
+    testOptions { unitTests.isReturnDefaultValues = true }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
 
 // Play Market uchun release faqat o'z kalitingiz bilan yig'iladi. Kalitsiz `bundleRelease`/`assembleRelease`

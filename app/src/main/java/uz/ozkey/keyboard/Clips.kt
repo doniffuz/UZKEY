@@ -77,6 +77,9 @@ object ClipStore {
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+
+        /** Ilovaning eski versiyasiga qaytilsa SQLiteOpenHelper istisno tashlab, Bufer'ni butunlay buzmasin. */
+        override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
     }
 
     @Volatile
@@ -244,17 +247,64 @@ object ClipStore {
         try { db(c).execSQL("UPDATE clips SET cat=? WHERE id=?", arrayOf<Any>(cat, id)) } catch (e: Exception) { }
     }
 
-    /** Matnni tahrirlash. Bo'sh yoki juda uzun bo'lsa — false. */
-    fun edit(c: Context, id: Long, raw: String): Boolean {
+    /** Matnni tahrirlash. Bo'sh, juda uzun yoki yozuv topilmasa — false. Batafsil: [editId]. */
+    fun edit(c: Context, id: Long, raw: String): Boolean = editId(c, id, raw) >= 0
+
+    /**
+     * Matnni tahrirlaydi va ISHLAB QOLGAN yozuv id sini qaytaradi (xato bo'lsa -1).
+     *  - Yangi matn boshqa yozuvdagi bilan aynan bir xil bo'lsa, ikki yozuv BIRLASHTIRILADI (takror hosil bo'lmaydi).
+     *  - Ishlab qoladigan yozuv — tahrirlanayotgan yozuv ([id]); ikkinchisi o'chiriladi.
+     *  - Mahkamlash / Sevimli — ikkalasidan biri bo'lsa saqlanadi; kategoriya — tahrirlangan yozuvniki, bo'sh bo'lsa ikkinchisiniki.
+     *  - Vaqt: takror bo'lmasa o'zgarmaydi (tarix tartibi buzilmaydi); birlashganda — ikkalasidan yangisi (add() dagi kabi).
+     *  Hammasi bitta tranzaksiyada: xatoda hech narsa o'zgarmaydi.
+     */
+    fun editId(c: Context, id: Long, raw: String): Long {
         val text = raw.trim()
-        if (text.isEmpty() || text.length > MAX_LEN) return false
+        if (text.isEmpty() || text.length > MAX_LEN) return -1L
         return try {
-            db(c).execSQL(
-                "UPDATE clips SET text=?, low=?, h=?, len=? WHERE id=?",
-                arrayOf<Any>(text, text.lowercase(Locale.ROOT), text.hashCode(), text.length, id)
-            )
-            true
-        } catch (e: Exception) { false }
+            val d = db(c)
+            d.beginTransaction()
+            try {
+                val r = editIn(d, id, text)
+                if (r >= 0) d.setTransactionSuccessful()
+                r
+            } finally {
+                d.endTransaction()
+            }
+        } catch (e: Exception) { -1L }
+    }
+
+    /** [editId] ning yadrosi: chaqiruvchi tranzaksiyani boshqaradi. [text] allaqachon trim qilingan va tekshirilgan. */
+    internal fun editIn(d: SQLiteDatabase, id: Long, text: String): Long {
+        var ts = 0L; var pinned = 0; var fav = 0; var cat = ""
+        var found = false
+        d.rawQuery("SELECT ts, pinned, fav, cat FROM clips WHERE id=?", arrayOf(id.toString())).use { cur ->
+            if (cur.moveToFirst()) {
+                found = true; ts = cur.getLong(0); pinned = cur.getInt(1); fav = cur.getInt(2); cat = cur.getString(3) ?: ""
+            }
+        }
+        if (!found) return -1L
+        // Aynan shu matnli BOSHQA yozuv bormi? (hash — tezlik uchun, so'ng aniq solishtirish)
+        var dup = -1L
+        d.rawQuery("SELECT id, text FROM clips WHERE h=? AND id<>?", arrayOf(text.hashCode().toString(), id.toString())).use { cur ->
+            while (cur.moveToNext()) if (cur.getString(1) == text) { dup = cur.getLong(0); break }
+        }
+        if (dup >= 0) {
+            d.rawQuery("SELECT ts, pinned, fav, cat FROM clips WHERE id=?", arrayOf(dup.toString())).use { cur ->
+                if (cur.moveToFirst()) {
+                    ts = maxOf(ts, cur.getLong(0))
+                    pinned = maxOf(pinned, cur.getInt(1))
+                    fav = maxOf(fav, cur.getInt(2))
+                    if (cat.isEmpty()) cat = cur.getString(3) ?: ""
+                }
+            }
+            d.execSQL("DELETE FROM clips WHERE id=?", arrayOf<Any>(dup))
+        }
+        d.execSQL(
+            "UPDATE clips SET text=?, low=?, h=?, len=?, ts=?, pinned=?, fav=?, cat=? WHERE id=?",
+            arrayOf<Any>(text, text.lowercase(Locale.ROOT), text.hashCode(), text.length, ts, pinned, fav, cat, id)
+        )
+        return id
     }
 
     fun remove(c: Context, id: Long) {
@@ -353,7 +403,7 @@ object ClipStore {
                 }
                 val pinned = o.optBoolean("p", false)
                 val fav = o.optBoolean("f", false)
-                val cat = o.optString("c", "")
+                val cat = o.optString("c", "").trim().take(24)   // chet fayldan kelgan nom: uzunligi cheklanadi
                 if (existing >= 0) {
                     d.execSQL(
                         "UPDATE clips SET pinned = MAX(pinned, ?), fav = MAX(fav, ?) WHERE id=?",

@@ -9,3 +9,9 @@ local.properties
 .dev.vars
 .env
 *.jks
+
+# Imzo va sirlar (HECH QACHON commit qilinmasin)
+*.p12
+*.b64
+keystore.properties
+signing.properties

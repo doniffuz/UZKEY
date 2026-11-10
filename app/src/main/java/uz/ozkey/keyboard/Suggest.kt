@@ -14,6 +14,7 @@ object WordModel {
     private const val MAX_USER = 3000
     private const val MAX_BI = 4000
     private const val NEIGHBOR_FIX_MIN_DICT = 3000   // qo'shni-harf avto-tuzatish uchun lug'atning minimal hajmi
+    private const val AUTOFIX_MIN_LEN = 5
     private const val ALPHA = "abcdefghijklmnopqrstuvwxyzşçğö"
 
     class Ctx(val prefix: String, val prev: String?, val sentenceStart: Boolean)
@@ -147,22 +148,36 @@ object WordModel {
         allEdits(w).filter { it in dict }.sortedByDescending { score(it, prev) }
 
     /**
-     * Faqat ISHONCHLI xatolar avtomatik tuzatiladi: qo'shni harflar almashgan ("bugnu"→"bugun")
-     * yoki qo'shni tugma bosilgan. Noaniq bo'lsa — hech narsa qilinmaydi.
+     * XAVFSIZ avto-tuzatish. Quyidagilarning HAMMASI bajarilsagina tuzatadi, aks holda null (so'z tegilmaydi):
+     *  1. so'z kamida 5 harf, faqat harflardan iborat, lug'atda YO'Q va foydalanuvchi uni oldin yozmagan;
+     *  2. natija — QURILMAGA O'RNATILGAN lug'at (assets) so'zi. Foydalanuvchi o'rgangan so'zlar (xato yozilgan
+     *     bo'lishi mumkin) tuzatish MAQSADI bo'la olmaydi;
+     *  3. yagona usul: qo'shni ikki harf almashgan ("bugnu"→"bugun"); katta lug'atda (>= 3000 so'z) qo'shni tugma ham;
+     *  4. so'zdan bitta tahrir (olib tashlash/qo'shish/almashtirish/almashgan juftlik) bilan erishiladigan
+     *     lug'at so'zi AYNAN BITTA bo'lishi shart — bir nechta variant bo'lsa, noaniq deb tegilmaydi.
+     * Ish vaqtida lug'at ~390 so'z: shu sababli faqat shu tor, tekshirilgan holat avtomatik tuzatiladi;
+     * qolgan hamma holat faqat TAKLIF sifatida ko'rsatiladi ([fixes], [complete]).
      */
     fun autoFix(w: String, prev: String?, nb: Map<Char, Set<Char>>): String? {
-        if (w.length < 4 || w in dict || w.any { !it.isLetter() }) return null
+        if (w.length < AUTOFIX_MIN_LEN || w in dict || w.any { !it.isLetter() }) return null
         if ((userCnt[w] ?: 0) >= 1) return null            // foydalanuvchi shu so'zni oldin yozgan
+        val reach = allEdits(w).filter { it in base }
+        if (reach.size != 1) return null                    // hech narsa yoki noaniq (bir nechta nomzod)
+        val target = reach[0]
         val cand = HashSet<String>(swaps(w))
-        // Qo'shni tugma bilan almashtirish ("bordik"→"bordim", "keldik"→"keldim") faqat katta lug'atda xavfsiz:
+        // Qo'shni tugma bilan almashtirish ("bordik"→"bordim") faqat katta lug'atda xavfsiz:
         // kichik lug'atda to'g'ri so'zlar ham "xato" deb topilib, ma'nosi o'zgarib ketadi.
         if (base.size >= NEIGHBOR_FIX_MIN_DICT) {
             for (i in w.indices) nb[w[i]]?.forEach { cand.add(w.substring(0, i) + it + w.substring(i + 1)) }
         }
-        val hits = cand.filter { it in dict }.sortedByDescending { score(it, prev) }
-        if (hits.isEmpty()) return null
-        if (hits.size > 1 && score(hits[0], prev) < score(hits[1], prev) * 13 / 10) return null
-        return hits[0]
+        return if (target in cand) target else null
+    }
+
+    /** Sinov uchun: o'rnatilgan lug'atni berilgan so'zlar bilan almashtiradi va hamma holatni tozalaydi. */
+    @Synchronized
+    internal fun resetForTest(baseWords: List<String> = emptyList()) {
+        dict.clear(); base.clear(); userCnt.clear(); bi.clear(); dirty = 0; ready = false; appCtx = null
+        baseWords.forEach { val w = Alphabet.toNew(it.trim().lowercase()); if (w.isNotEmpty() && w !in base) { base[w] = base.size; dict.add(w) } }
     }
 
     @Synchronized

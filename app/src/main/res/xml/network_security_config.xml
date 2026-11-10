@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Faqat HTTPS; faqat tizim sertifikatlariga ishoniladi (foydalanuvchi o'rnatgan sertifikatlarga emas). Sertifikat tekshiruvi o'chirilmagan. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -23,7 +23,7 @@ object Languages {
 
     val UZ = Lang("UZ", "O'zbekcha (Lotin, ÖZ)", "ÖZKEY",
         listOf(l("qwertyuiop"), l("asdfghjkl"), l("zxcvbnm")),
-        listOf("Ğ", "Ö", "Ş", "Ç", "'"), uzDigraph = true)
+        listOf("ğ", "ö", "ş", "ç", "'"), uzDigraph = true)   // oddiy holat: kichik; ⇧: Ğ Ö Ş Ç
 
     val UZC = Lang("UZC", "Ўзбекча (Кирилл)", "Ўзбекча",
         listOf(l("йцукенгшўзх"), l("фқвапролджэ"), l("ячсмитьбю")),
@@ -80,15 +80,16 @@ object Languages {
     /** Server ro'yxati: {"packs":[{"code":"ar","name":"العربية","url":"https://.../ar.json"}]} — fon oqimida chaqiring. */
     fun fetchRemoteIndex(): List<Triple<String, String, String>> {
         val u = BuildConfig.PACKS_URL
-        if (u.isBlank()) return emptyList()
+        if (!u.startsWith("https://")) return emptyList()
         val conn = URL(u).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 8000; conn.readTimeout = 8000
+            conn.instanceFollowRedirects = false
             if (conn.responseCode != 200) return emptyList()
-            val a = JSONObject(conn.inputStream.bufferedReader().readText()).getJSONArray("packs")
-            return (0 until a.length()).map {
-                val o = a.getJSONObject(it); Triple(o.getString("code"), o.getString("name"), o.getString("url"))
-            }
+            val a = JSONObject(Net.readCapped(conn.inputStream, 100_000)).getJSONArray("packs")
+            return (0 until minOf(a.length(), 50)).map {
+                val o = a.getJSONObject(it); Triple(o.getString("code"), o.getString("name").take(40), o.getString("url"))
+            }.filter { it.third.startsWith("https://") && Regex("[A-Za-z0-9_-]{1,16}").matches(it.first) }
         } finally { conn.disconnect() }
     }
 
@@ -98,9 +99,9 @@ object Languages {
         val conn = URL(url).openConnection() as HttpURLConnection
         return try {
             conn.connectTimeout = 8000; conn.readTimeout = 8000
+            conn.instanceFollowRedirects = false
             if (conn.responseCode != 200) return false
-            val text = conn.inputStream.bufferedReader().readText()
-            if (text.length > 100_000) return false
+            val text = Net.readCapped(conn.inputStream, 100_000)
             fromJson(JSONObject(text))
             File(dir(c), "${code.lowercase()}.json").writeText(text)
             true

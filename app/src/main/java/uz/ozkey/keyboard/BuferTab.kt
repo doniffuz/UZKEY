@@ -26,12 +26,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
-import java.security.SecureRandom
-import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Ilovadagi «Bufer» bo'limi: qidiruv, Tarix | Sevimlilar | Mahkamlangan, kategoriyalar,
@@ -123,9 +117,9 @@ class BuferTab(private val a: MainActivity) {
         textSize = 13.5f
         gravity = Gravity.CENTER
         maxLines = 1
-        setTextColor(if (on) Color.WHITE else a.cTurq)
+        setTextColor(if (on) Color.WHITE else a.cAccent)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        background = a.rounded(if (on) a.cTurq else Color.WHITE, 14).apply { setStroke(dp(1), a.cTurq) }
+        background = a.rounded(if (on) a.cAccent else a.cSurface, 14).apply { setStroke(dp(1), a.cAccent) }
         setPadding(dp(12), dp(9), dp(12), dp(9))
         setOnClickListener { onClick() }
     }
@@ -214,7 +208,7 @@ class BuferTab(private val a: MainActivity) {
                 gravity = Gravity.CENTER
                 setTextColor(if (main) Color.WHITE else a.cInk)
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                background = if (main) a.rounded(a.cTurq, 12) else a.rounded(a.cCream, 12).apply { setStroke(dp(1), a.cLine) }
+                background = if (main) a.rounded(a.cAccent, 12) else a.rounded(a.cField, 12).apply { setStroke(dp(1), a.cLine) }
                 setPadding(0, dp(9), 0, dp(9))
                 setOnClickListener { onClick() }
             }, LinearLayout.LayoutParams(0, WRAP, w).apply { leftMargin = dp(4) })
@@ -475,7 +469,7 @@ class BuferTab(private val a: MainActivity) {
                 exportPw = null
                 val uri = data?.data
                 if (res != Activity.RESULT_OK || uri == null || pw == null) return true
-                a.toast("Zaxira tayyorlanmoqda…")
+                a.toast("Zaxira tayyorlanmoqda… (bir necha soniya ketishi mumkin)")
                 Thread {
                     var ok = false
                     try {
@@ -493,7 +487,7 @@ class BuferTab(private val a: MainActivity) {
                 val bytes = readLimited(uri)
                 if (bytes == null) { a.toast("Faylni o'qib bo'lmadi yoki juda katta"); return true }
                 askPassword("📥 Import", "Zaxira faylini shifrlashda yozgan parolingizni kiriting.", "Ochish") { pw ->
-                    a.toast("Tekshirilmoqda…")
+                    a.toast("Tekshirilmoqda… (bir necha soniya ketishi mumkin)")
                     Thread {
                         val json = ClipBackup.decrypt(bytes, pw)
                         a.runOnUiThread {
@@ -512,44 +506,5 @@ class BuferTab(private val a: MainActivity) {
             }
         }
         return false
-    }
-}
-
-/**
- * Zaxira fayli: "OZKB1" + tuz(16) + iv(12) + AES-256-GCM shifrlangan JSON.
- * Kalit — foydalanuvchi parolidan PBKDF2 bilan olinadi. Parol hech qayerda saqlanmaydi.
- */
-object ClipBackup {
-    private val MAGIC = "OZKB1".toByteArray(Charsets.US_ASCII)
-    private const val ITER = 120_000
-
-    private fun key(pw: String, salt: ByteArray): SecretKeySpec {
-        val f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
-        val raw = f.generateSecret(PBEKeySpec(pw.toCharArray(), salt, ITER, 256)).encoded
-        return SecretKeySpec(raw, "AES")
-    }
-
-    fun encrypt(json: String, pw: String): ByteArray {
-        val rnd = SecureRandom()
-        val salt = ByteArray(16).also { rnd.nextBytes(it) }
-        val iv = ByteArray(12).also { rnd.nextBytes(it) }
-        val c = Cipher.getInstance("AES/GCM/NoPadding")
-        c.init(Cipher.ENCRYPT_MODE, key(pw, salt), GCMParameterSpec(128, iv))
-        return MAGIC + salt + iv + c.doFinal(json.toByteArray(Charsets.UTF_8))
-    }
-
-    /** Parol noto'g'ri, fayl buzilgan yoki ÖZKEY zaxirasi emas bo'lsa — null. */
-    fun decrypt(data: ByteArray, pw: String): String? {
-        val h = MAGIC.size
-        if (data.size < h + 16 + 12 + 16) return null
-        for (i in MAGIC.indices) if (data[i] != MAGIC[i]) return null
-        return try {
-            val salt = data.copyOfRange(h, h + 16)
-            val iv = data.copyOfRange(h + 16, h + 28)
-            val ct = data.copyOfRange(h + 28, data.size)
-            val c = Cipher.getInstance("AES/GCM/NoPadding")
-            c.init(Cipher.DECRYPT_MODE, key(pw, salt), GCMParameterSpec(128, iv))
-            String(c.doFinal(ct), Charsets.UTF_8)
-        } catch (e: Exception) { null }
     }
 }

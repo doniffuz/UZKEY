@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Premium qorong'i (dark-blue) mavzu: standart. Ilova ichidagi barcha dialoglar ham qorong'i bo'ladi. -->
+    <style name="Theme.OZKey" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window</item>
+        <item name="android:colorBackground">@color/ozkey_bg</item>
+        <item name="android:colorAccent">@color/ozkey_accent</item>
+        <item name="android:statusBarColor">@color/ozkey_bg</item>
+        <item name="android:navigationBarColor">@color/ozkey_bg</item>
+        <item name="android:textColorPrimary">@color/ozkey_text</item>
+        <item name="android:textColorSecondary">@color/ozkey_muted</item>
+    </style>
+</resources>

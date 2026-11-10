@@ -1,6 +1,6 @@
 # ÖZKEY — Maxfiylik siyosati
 
-**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-09  ·  **Versiya:** 1.0.0
+**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-10  ·  **Versiya:** 1.0.0
 
 ÖZKEY — o'zbek tilidagi klaviatura ilovasi. Klaviatura siz yozgan matnni ko'radi, shuning uchun uni qanday ishlatishimiz haqida ochiq yozamiz.
 
@@ -22,9 +22,8 @@
 - **Klaviatura foni uchun rasm:** galereyadan o'zingiz tanlagan rasm ilovaning ichki xotirasida saqlanadi va hech qayerga yuborilmaydi.
 
 ## Ruxsatlar
-- **VIBRATE** — tugma bosilganda tebranish uchun.
 - **INTERNET** — faqat ixtiyoriy onlayn tarjima uchun (server ulanmagan bo'lsa ishlatilmaydi).
-- Boshqa ruxsat yo'q.
+- Boshqa ruxsat yo'q (tugma tebranishi tizim sozlamasi orqali ishlaydi, alohida ruxsat talab qilmaydi).
 - Galereya rasmi tizimning rasm tanlash oynasi orqali olinadi — ilova butun galereyaga kirmaydi.
 
 ## Bolalar

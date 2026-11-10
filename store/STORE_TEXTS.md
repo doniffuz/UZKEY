@@ -57,8 +57,8 @@ Maxfiylik: klaviatura internetsiz ishlaydi; internet ruxsati faqat ixtiyoriy onl
 Конфиденциальность: клавиатура работает без интернета; доступ в интернет нужен только для необязательного онлайн-перевода. Всё, что вы набираете, выученные слова, буфер обмена и фон остаются на телефоне. Без рекламы и слежки. В полях пароля, email и ссылок автозамена и обучение отключены.
 
 ## What's new (1.0.0)
-- **EN:** `Safer auto-correct (no more changed valid words), easier access to Ğ Ö Ş Ç, clearer Enter/globe/emoji icons, clipboard fixes, clean Light/Dark look by default.`
-- **UZ:** `Xavfsizroq avto-tuzatish (to'g'ri so'zlar o'zgarmaydi), Ğ Ö Ş Ç tugmalari qulayroq, Enter/globus/emoji ikonkalari aniqroq, bufer tuzatildi, standart ko'rinish — toza Kun/Tun.`
+- **EN:** `Safer auto-correct (no more changed valid words), easier access to Ğ Ö Ş Ç, clearer Enter/globe/emoji icons, clipboard fixes, premium dark-blue theme by default with a matching Light theme and six accent colors.`
+- **UZ:** `Xavfsizroq avto-tuzatish (to'g'ri so'zlar o'zgarmaydi), Ğ Ö Ş Ç tugmalari qulayroq, Enter/globus/emoji ikonkalari aniqroq, bufer tuzatildi, standart premium qora-ko'k mavzu, unga mos Oq mavzu va 6 ta rang uslubi.`
 
 ## Eslatma
 - Tarjima faqat `ozkeyTranslateUrl` ulangan buildda bor. Server ulanmagan bo'lsa, skrinshot/bannerda «Tarjima» ko'rsatmang; ulangan bo'lsa — uni ixtiyoriy onlayn funksiya deb yozing.

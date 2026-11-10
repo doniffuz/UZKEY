@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Oyna foni (Android 11 va eski: ilova ochilguncha; Android 12+: tizim splashdan keyin).
+     Faqat gradient: logo va yozuvni MainActivity.showSplash() chizadi, shuning uchun logo ikki marta
+     (turli o'lchamda) chaqnamaydi. Ranglar showSplash() bilan bir xil: tepada #0E2256, pastda #07122B. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="270" android:startColor="#0E2256" android:endColor="#07122B" />
+</shape>

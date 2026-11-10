@@ -14,7 +14,7 @@ import java.io.File
  * stroke == 0 bo'lsa chegara yo'q. rainbow == true bo'lsa tugma chegarasi/harfi rang almashtiradi.
  * photo == true bo'lsa fon — foydalanuvchi galereyadan tanlagan rasm (PhotoStore).
  */
-class KeyTheme(
+data class KeyTheme(
     val id: String,
     val name: String,
     val group: String,
@@ -25,20 +25,45 @@ class KeyTheme(
     val text: Int,
     val stroke: Int = 0,
     val rainbow: Boolean = false,
-    val photo: Boolean = false
+    val photo: Boolean = false,
+    /** Premium dizayn mavzusi: aksent rangi (Enter, aktiv Shift, belgilar) «Rang uslubi» bilan almashadi. */
+    val accent: Int = Color.rgb(47, 128, 255),
+    val premium: Boolean = false
 )
 
 object Themes {
-    const val DEFAULT_ID = "auto"   // toza ko'rinish: telefonning Kun/Tun rejimiga qarab Yorug' yoki Qora
+    const val DEFAULT_ID = "ozdark"   // premium dark-blue dizayn — majburiy standart
+    const val LIGHT_ID = "ozlight"
+    const val DEFAULT_ACCENT = "blue"
     const val PHOTO_ID = "photo"
     const val AUTO_ID = "auto"   // telefon Kun/Tun rejimiga qarab Yorug' yoki Qora
 
-    val groups = listOf("O'zbekona", "Oddiy", "Rangli", "Neon")
+    val groups = listOf("Premium", "O'zbekona", "Oddiy", "Rangli", "Neon")
+
+    /** «Rang uslubi»: id, nomi, rang. */
+    val accents: List<Triple<String, String, Int>> = listOf(
+        Triple("blue", "Blue", Color.rgb(47, 128, 255)),
+        Triple("cyan", "Cyan", Color.rgb(34, 211, 238)),
+        Triple("purple", "Purple", Color.rgb(139, 92, 246)),
+        Triple("green", "Green", Color.rgb(34, 197, 94)),
+        Triple("orange", "Orange", Color.rgb(249, 115, 22)),
+        Triple("pink", "Pink", Color.rgb(236, 72, 153))
+    )
+
+    fun accentColor(id: String?): Int = (accents.firstOrNull { it.first == id } ?: accents[0]).third
+
+    /** Premium mavzuga tanlangan aksent rangini qo'llaydi; boshqa mavzularga tegmaydi. */
+    fun withAccent(t: KeyTheme, accentId: String?): KeyTheme =
+        if (t.premium) t.copy(accent = accentColor(accentId)) else t
 
     private fun c(r: Int, g: Int, b: Int) = Color.rgb(r, g, b)
     private fun a(al: Int, r: Int, g: Int, b: Int) = Color.argb(al, r, g, b)
 
     val all: List<KeyTheme> = listOf(
+        // ---- Premium (yangi standart dizayn) ----
+        KeyTheme("ozdark", "Qora tema", "Premium", c(11, 27, 70), c(5, 12, 36), c(24, 42, 90), c(14, 27, 62), c(242, 246, 255), c(40, 64, 128), premium = true),
+        KeyTheme("ozlight", "Oq tema", "Premium", c(228, 236, 250), c(212, 223, 244), Color.WHITE, c(196, 209, 236), c(16, 28, 56), c(206, 217, 238), premium = true),
+
         // ---- O'zbekona ----
         KeyTheme("samarkand", "Samarqand", "O'zbekona", c(5, 62, 84), c(0, 112, 128), c(10, 98, 116), c(6, 76, 94), c(228, 250, 250), c(217, 169, 62)),
         KeyTheme("registon", "Registon", "O'zbekona", c(10, 28, 88), c(22, 72, 152), c(24, 60, 132), c(16, 42, 104), c(255, 238, 190), c(232, 192, 76)),

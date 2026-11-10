@@ -1,16 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Faqat ixtiyoriy onlayn qism uchun (tarjima serveri / til paketlari). URL berilmasa ishlatilmaydi. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ozkey_launcher"
-        android:roundIcon="@drawable/ozkey_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="ÖZKEY"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="false"
+        android:theme="@style/Theme.OZKey">
         <activity
             android:name=".MainActivity"
             android:exported="true"
