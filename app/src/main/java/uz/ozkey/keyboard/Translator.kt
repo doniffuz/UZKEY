@@ -8,7 +8,7 @@ import java.net.URL
  * Tarjima. Maqsad tillar: "uz" (lotin, ÖZ alifbosi), "uz-cyr" (kirill), "ru", "en".
  *
  * MUHIM: tarjima FAQAT o'z serveringiz (backend/worker.js) ulanganda ishlaydi.
- * gradle.properties:  ozkeyTranslateUrl=https://...   (va AndroidManifest.xml ga INTERNET ruxsatini qaytaring).
+ * gradle.properties:  ozkeyTranslateUrl=https://...   (INTERNET ruxsati AndroidManifest.xml da bor).
  * Server ulanmagan bo'lsa tarjima tugmalari klaviaturada ko'rinmaydi va ilova internetga chiqmaydi.
  * Faqat fon oqimida chaqiring!
  */

@@ -1,3 +1,36 @@
+# ÖZKEY Android — 1.0.0 (versionCode 18) — final candidate
+
+> DIQQAT: bu o'zgarishlar kompilyator va qurilmasiz kiritilgan (Android SDK yo'q muhitda). Birinchi `gradle assembleDebug`, qurilmada sinov va Play Console'da «Internal testing» SHART.
+
+## Final candidate: nima tuzatildi
+- **Avto-tuzatish xatosi (haqiqiy):** kichik lug'atda (390 so'z) qo'shni-tugma almashtirishi to'g'ri so'zlarni buzardi (`bordik→bordim`, `keldik→keldim`, `ko'rdik→kördim`, `oldim→oldin`, `burun→butun`, `karta→katta`). Endi qo'shni-tugma tuzatishi faqat lug'at ≥ 3000 so'z bo'lganda ishlaydi; harflar o'rni almashgan xatolar (`bugnu→bugun`) avvalgidek tuzatiladi. 223 ta to'g'ri so'zda sinab ko'rildi: 0 ta noto'g'ri tuzatish.
+- **Bufer:** Bufer ochilganda oxirgi nusxa qayta qo'shilib, tozalangan/o'chirilgan matn «qaytib kelardi» — tuzatildi.
+- **Tugmalar:** Ğ Ö Ş Ç ' qatori 34→42 dp va teng enli; ↵ / 🌐 / 😊 / ?123 yozuvlari 11sp edi (⌫ ⇧ 22sp) — bir xil o'lchamga keltirildi; tepa panel 48→44 dp (umumiy balandlik deyarli o'zgarmadi).
+- **Dizayn:** standart mavzu endi «Avto» (telefon Kun/Tun rejimiga qarab Yorug'/Qora). Neon/RGB mavzular ro'yxatda qoldi. (Mavzuni avval tanlagan foydalanuvchilarga ta'sir qilmaydi.)
+- **Play:** `targetSdk/compileSdk 36` (Play 2026-08-31 dan API 36 talab qiladi — 35 bilan yuklab bo'lmasdi); kalitsiz `bundleRelease/assembleRelease` endi to'xtaydi (avval jimgina debug kalit bilan imzolanardi); `versionCode 18`.
+- **Klaviatura sozlamalari:** tizimdagi klaviatura sozlamasi tugmasi endi ÖZKEY ilovasini ochadi (`settingsActivity`).
+- **AAB'da APK ulashish:** Play o'rnatishida APK bo'laklarga bo'linadi, shuning uchun «APKni ulashish» o'rniga do'kon havolasini ulashish ko'rsatiladi (havola `ozkeyStoreUrl` da).
+- **Maxfiylik:** siyosat va ilova kartasi tarjima xizmati (Anthropic) va serverdagi IP bo'yicha kunlik limit haqida aniq yozadigan bo'ldi; `STORE_TEXTS.md`dagi eskirgan versiya/«tarjima yo'q» yozuvi tuzatildi.
+
+## Tegilmagan, lekin bilish kerak
+- So'z lug'ati juda kichik (390 so'z): takliflar cheklangan. Qo'shni-tugma avto-tuzatish lug'at kattalashganda (≥3000) o'zi yoqiladi.
+- Sozlamalar ekrani (MainActivity) faqat yorug' mavzuda; klaviaturaning o'zi Kun/Tun'ga moslashadi.
+- targetSdk 36 uchun AGP 8.7.3 + `android.suppressUnsupportedCompileSdk=36`. CI muammo bersa AGP 8.9.1+ va Gradle 8.11.1+ ga ko'taring.
+
+
+
+> DIQQAT: bu o'zgarishlar kompilyator va qurilmasiz yozilgan. Birinchi `gradle assembleDebug` va telefonda sinov SHART. Sinovdan o'tmagan narsa «ishlaydi» deb hisoblanmasin.
+
+## 1-qism: majburiy Telegram obunasi olib tashlandi (versiya raqami o'zgarmadi: 1.0.0 / 17)
+- Obuna oynasi, obunani tekshirish, kunlik qayta tekshiruv, «Telegram bog'lanishini o'chirish» tugmasi va obuna serveriga barcha chaqiruvlar olib tashlandi. `Subscription.kt` va `backend/subscribe/` o'chirildi; `ozkeySubscribeUrl` / `SUBSCRIBE_URL` olib tashlandi.
+- **INTERNET ruxsati qaytarildi** (onlayn tarjima/backend uchun kerak). `ozkeyTranslateUrl` va `ozkeyPacksUrl` bo'sh bo'lsa ilova internetga chiqmaydi. Obuna/Telegram tekshiruvi uchun hech qanday so'rov yo'q.
+- Telegram faqat ixtiyoriy havola sifatida qoldi: Sozlama → Ilova haqida → @Doniku_Admin, @OZKEY_Official. (@OZKEY_YordamchiBot tugmasi olib tashlandi: bot faqat obuna tasdiqlash uchun edi.)
+- `Tr.kt` (3 tilli matnlar infratuzilmasi) saqlandi, faqat obuna matnlari olib tashlandi.
+- Maxfiylik siyosati (`store/`, `docs/privacy.html`), do'kon matni va ilova ichidagi maxfiylik kartasi INTERNET ruxsatining ixtiyoriy onlayn tarjima uchun ekanini aytadigan qilib yangilandi.
+- Tarjima (`backend/worker.js`) saqlandi; `ozkeyTranslateUrl` berilmaguncha o'chiq. `ozkeyPacksUrl` va `Languages.fetchRemoteIndex/installRemote` hozircha hech qaysi ekranga ulanmagan (faqat APK ichidagi til paketlari ishlaydi).
+
+> DIQQAT: bu o'zgarishlar Android SDK bo'lmagan muhitda kiritilgan. `gradle assembleDebug` va qurilmada sinov hali bajarilmagan.
+
 # ÖZKEY Android — 0.10.0 (versionCode 16)
 
 > DIQQAT: bu o'zgarishlar kompilyator va qurilmasiz yozilgan (Gradle/Android SDK bo'lmagan muhitda). Birinchi `gradle assembleDebug` va qurilmada sinov SHART.

@@ -3,7 +3,6 @@
 //
 // Joylash:  cd backend && npm i -g wrangler && wrangler login
 //           wrangler secret put ANTHROPIC_API_KEY
-//           wrangler secret put APP_TOKEN        (ixtiyoriy, quyidagi izohga qarang)
 //           wrangler deploy
 // Keyin URL ni gradle.properties ga yozing:  ozkeyTranslateUrl=https://ozkey-translate.<sizning>.workers.dev
 //

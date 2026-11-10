@@ -100,6 +100,7 @@ class OZKeyInputMethod : InputMethodService() {
     private var clipTab = ClipStore.TAB_HISTORY   // Tarix | Sevimlilar | Mahkamlangan
     private var clipDelAsk = -1L                  // o'chirish tasdig'i kutilayotgan matn (id)
     private var clipListenerOn = false
+    private var lastClipSig = 0                   // oxirgi ko'rilgan nusxaning belgisi (hash)
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { captureClip() }
 
     // Rasm fon (kesh)
@@ -247,10 +248,10 @@ class OZKeyInputMethod : InputMethodService() {
 
     private fun rowHeightDp(row: List<String>): Int {
         val base = when {
-            row === topBar -> 48
+            row === topBar -> 44
             row === sgKeys -> 34
             layer == Layer.LETTERS && row === digits -> 42
-            layer == Layer.LETTERS && row === lang.extra -> 34
+            layer == Layer.LETTERS && row === lang.extra -> 42   // Ğ Ö Ş Ç ' — tez-tez ishlatiladi, bosish oson bo'lsin
             row === quickRow1 || row === quickRow2 -> 40
             else -> 56
         }
@@ -314,7 +315,6 @@ class OZKeyInputMethod : InputMethodService() {
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.35f
         key == "sp" -> 1.5f
-        layer == Layer.LETTERS && (key == "Ğ" || key == "Ö" || key == "Ş" || key == "Ç") -> 0.55f
         key == "cchip" -> 2.8f
         key == "ttgt" -> 3f
         key == "tboth" -> 2.2f
@@ -522,7 +522,9 @@ class OZKeyInputMethod : InputMethodService() {
         keyboard.addView(bottomBarRow())
     }
 
-    private fun captureClip() {
+    /** @param fromOpen true — Bufer ochilganda tekshiruv: oxirgi ko'rilgan nusxa qayta qo'shilmaydi
+     *  (aks holda tozalangan/o'chirilgan matn Bufer ochilishi bilan qaytib kelardi). */
+    private fun captureClip(fromOpen: Boolean = false) {
         if (!prefs().getBoolean("cliphist", true)) return
         try {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -534,6 +536,9 @@ class OZKeyInputMethod : InputMethodService() {
             val t = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
             // OTP kod / karta raqami ko'rinishidagi matn tarixga tushmaydi (Sozlamadan o'chirish mumkin)
             if (prefs().getBoolean("clipsafe", true) && ClipStore.looksSensitive(t)) return
+            val sig = t.hashCode()
+            if (fromOpen && sig == lastClipSig) return
+            lastClipSig = sig
             ClipStore.add(this, t)
             val tt = t.trim()
             if (tt.isNotEmpty() && tt.length <= ClipStore.MAX_LEN && tt != recentClip) {
@@ -558,7 +563,7 @@ class OZKeyInputMethod : InputMethodService() {
     }
 
     private fun openClipboard() {
-        captureClip()
+        captureClip(fromOpen = true)
         clipDelAsk = -1L
         layer = Layer.CLIPBOARD
         render()
@@ -790,7 +795,9 @@ class OZKeyInputMethod : InputMethodService() {
                 key == "ttgt" || key == "tboth" || key == "cchip" -> 13f
                 key == "cclear" -> 18f
                 key == "tok" || key == "tx" -> 20f
-                key == "⇧" || key == "⌫" -> 22f
+                key == "⇧" || key == "⌫" || key == "↵" -> 22f
+                key == "🌐" || key == "😊" -> 20f
+                key == "?123" || key == "ABC" -> 14f
                 key == "space" || special -> 11f
                 isLetterKey -> 28f * fontScale / 100f * (0.5f + 0.5f * screenFactor())   // harflar: katta
                 key.length == 1 && key[0].isDigit() -> 19f * fontScale / 100f

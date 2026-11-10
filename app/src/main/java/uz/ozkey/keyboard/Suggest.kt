@@ -13,6 +13,7 @@ object WordModel {
     private const val PREFS = "ozkey_words"
     private const val MAX_USER = 3000
     private const val MAX_BI = 4000
+    private const val NEIGHBOR_FIX_MIN_DICT = 3000   // qo'shni-harf avto-tuzatish uchun lug'atning minimal hajmi
     private const val ALPHA = "abcdefghijklmnopqrstuvwxyzşçğö"
 
     class Ctx(val prefix: String, val prev: String?, val sentenceStart: Boolean)
@@ -153,7 +154,11 @@ object WordModel {
         if (w.length < 4 || w in dict || w.any { !it.isLetter() }) return null
         if ((userCnt[w] ?: 0) >= 1) return null            // foydalanuvchi shu so'zni oldin yozgan
         val cand = HashSet<String>(swaps(w))
-        for (i in w.indices) nb[w[i]]?.forEach { cand.add(w.substring(0, i) + it + w.substring(i + 1)) }
+        // Qo'shni tugma bilan almashtirish ("bordik"→"bordim", "keldik"→"keldim") faqat katta lug'atda xavfsiz:
+        // kichik lug'atda to'g'ri so'zlar ham "xato" deb topilib, ma'nosi o'zgarib ketadi.
+        if (base.size >= NEIGHBOR_FIX_MIN_DICT) {
+            for (i in w.indices) nb[w[i]]?.forEach { cand.add(w.substring(0, i) + it + w.substring(i + 1)) }
+        }
         val hits = cand.filter { it in dict }.sortedByDescending { score(it, prev) }
         if (hits.isEmpty()) return null
         if (hits.size > 1 && score(hits[0], prev) < score(hits[1], prev) * 13 / 10) return null

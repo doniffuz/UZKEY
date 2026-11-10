@@ -200,7 +200,8 @@ class MainActivity : Activity() {
     }
 
     private fun rebuild() {
-        if (prefs().getBoolean("onboarded", false)) showMain() else showOnboarding()
+        if (!prefs().getBoolean("onboarded", false)) showOnboarding()
+        else showMain()
     }
 
     override fun onResume() {
@@ -298,7 +299,7 @@ class MainActivity : Activity() {
             fillSteps(holder, auto = false)
             body.addView(gap(12))
             body.addView(tv("Android «klaviatura ma'lumot yig'ishi mumkin» deb ogohlantiradi — bu tizimning standart xabari. " +
-                "ÖZKEY yozganingizni serverga yubormaydi.", 12f, cMuted))
+                "ÖZKEY yozganingizni serverga yubormaydi (faqat siz o'zingiz yoqadigan ixtiyoriy tarjimadan tashqari).", 12f, cMuted))
         }
         col.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -324,6 +325,7 @@ class MainActivity : Activity() {
         col.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(20) + bottomInset) })
         root.addView(col)
     }
+
 
     // ---------- ASOSIY EKRAN ----------
 
@@ -424,6 +426,21 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Play (AAB) o'rnatishida ilova bo'laklarga (split APK) bo'linadi: bitta base.apk alohida o'rnatilmaydi, shuning uchun u ulashilmaydi. */
+    private fun apkShareable(): Boolean = applicationInfo.splitSourceDirs.isNullOrEmpty()
+
+    private fun shareStoreLink() {
+        try {
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "ÖZKEY — O‘zbek klaviaturasi: ${BuildConfig.STORE_URL}")
+            }
+            startActivity(Intent.createChooser(send, "ÖZKEY ni ulashish"))
+        } catch (e: Exception) {
+            toast("Ulashib bo'lmadi")
+        }
+    }
+
     private fun openUrl(url: String) {
         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         catch (e: Exception) { toast("Ochib bo'lmadi") }
@@ -435,9 +452,13 @@ class MainActivity : Activity() {
         c.addView(tv("❤️ ÖZKEY sizga yoqdimi?", 17f, cInk, true))
         c.addView(tv("Ilova bepul va reklamasiz. Do'stlaringizga ulashing yoki rivojiga hissa qo'shing.", 13f, cMuted)
             .apply { setPadding(0, dp(4), 0, dp(10)) })
-        c.addView(primaryBtn("📦 APKni do'stlarga ulashish") {
-            shareInstalledApk()
-        })
+        if (apkShareable()) {
+            c.addView(primaryBtn("📦 APKni do'stlarga ulashish") {
+                shareInstalledApk()
+            })
+        } else if (BuildConfig.STORE_URL.isNotEmpty()) {
+            c.addView(primaryBtn("📤 Do'stlarga ulashish") { shareStoreLink() })
+        }
         if (BuildConfig.STORE_URL.isNotEmpty()) {
             c.addView(gap(8))
             c.addView(outlineBtn("⭐ Baho berish") { openUrl(BuildConfig.STORE_URL) })
@@ -458,7 +479,7 @@ class MainActivity : Activity() {
     /** Ilova haqida: dasturchi Donyor va aloqa. */
     private fun developerCard(): View {
         val c = card()
-        c.addView(tv("ÖZKEY Keyboard 🇺🇿", 20f, cInk, true))
+        c.addView(tv("ÖZKEY Keyboard 🇺🇿 · v${BuildConfig.VERSION_NAME}", 20f, cInk, true))
         c.addView(tv("O‘zbekcha yozuv — yangi daraja.", 14f, cTurq, true).apply { setPadding(0, dp(2), 0, dp(8)) })
         c.addView(tv("ÖZKEY — o‘zbek tilida qulay, zamonaviy va tez yozish uchun yaratilgan Android klaviatura. " +
             "Ilova yangi o‘zbek alifbosini qo‘llab-quvvatlaydi va yozishni yanada qulay qilishga qaratilgan.", 13f, cMuted))
@@ -481,6 +502,8 @@ class MainActivity : Activity() {
             "Sizda taklif, xato yoki yangi g‘oya bo‘lsa, bizga yozishingiz mumkin.", 13f, cMuted))
         c.addView(gap(10))
         c.addView(primaryBtn("📩 Telegram: @Doniku_Admin") { openTelegram() })
+        c.addView(gap(6))
+        c.addView(outlineBtn("📢 @OZKEY_Official") { openUrl("https://t.me/OZKEY_Official") })
         c.addView(gap(4))
         c.addView(tv("Sizning fikringiz ÖZKEY'ni yanada yaxshilashga yordam beradi.", 12f, cMuted).apply { setPadding(0, dp(6), 0, 0) })
         c.addView(gap(10))
@@ -790,7 +813,7 @@ class MainActivity : Activity() {
 
         val c3 = card()
         c3.addView(tv("🔒 Maxfiylik", 17f, cInk, true))
-        c3.addView(tv("ÖZKEY internetga chiqmaydi: ilovada INTERNET ruxsati yo'q. Yozganingiz, o'rganilgan so'zlar va bufer faqat telefoningizda qoladi. " +
+        c3.addView(tv("Klaviatura internetsiz ishlaydi: yozganingiz, o'rganilgan so'zlar va bufer faqat telefoningizda qoladi. Internet faqat ixtiyoriy tarjima serveri ulangan bo'lsa va siz tarjima rejimida yozsangiz yoki «Maydonni tarjima»ni bossangiz ishlatiladi: bunda faqat shu matn tarjima xizmatiga (Anthropic Claude) yuboriladi va saqlanmaydi. " +
             "Parol, email va havola maydonlarida avto-almashtirish va o'rganish o'chirilgan.", 13f, cMuted))
         p.addView(c3)
 
