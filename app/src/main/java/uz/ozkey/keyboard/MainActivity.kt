@@ -32,6 +32,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Switch
+import android.widget.TextView
+import android.widget.Toast
 
 /**
  * ÖZKEY — sozlash ilovasi. Premium dizayn tizimi: deep navy fon, electric blue/cyan aksent, yumaloq kartalar,

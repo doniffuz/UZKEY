@@ -196,11 +196,14 @@ class BuferTab(private val a: MainActivity) {
     private fun itemCard(item: ClipStore.Item): View {
         val c = a.card()
         c.setOnClickListener { showFull(item.id) }
-        c.addView(a.tv(item.preview.trim(), 15f, a.cInk).apply {
-            maxLines = 3
-            ellipsize = TextUtils.TruncateAt.END
-        })
-        c.addView(a.tv(metaText(item), 11.5f, a.cMuted).apply { setPadding(0, dp(4), 0, dp(8)) })
+        val previewText: TextView = a.tv(item.preview.trim(), 15f, a.cInk)
+        previewText.maxLines = 3
+        previewText.ellipsize = TextUtils.TruncateAt.END
+        c.addView(previewText)
+
+        val metaLabel: TextView = a.tv(metaText(item), 11.5f, a.cMuted)
+        metaLabel.setPadding(0, dp(4), 0, dp(8))
+        c.addView(metaLabel)
 
         val row = LinearLayout(a)
         fun btn(label: String, w: Float, main: Boolean = false, onClick: () -> Unit) {
@@ -270,7 +273,9 @@ class BuferTab(private val a: MainActivity) {
                 setPadding(dp(18), dp(16), dp(18), dp(10))
             }
             col.addView(a.tv("📄 To'liq matn", 17f, a.cInk, true))
-            col.addView(a.tv(metaText(item), 12f, a.cMuted).apply { setPadding(0, dp(2), 0, dp(10)) })
+            val metaLabel: TextView = a.tv(metaText(item), 12f, a.cMuted)
+            metaLabel.setPadding(0, dp(2), 0, dp(10))
+            col.addView(metaLabel)
 
             if (editing) {
                 val et = a.field("Matn").apply {
