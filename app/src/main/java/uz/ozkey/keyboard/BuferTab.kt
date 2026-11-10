@@ -66,10 +66,10 @@ class BuferTab(private val a: MainActivity) {
 
         val head = LinearLayout(a).apply { gravity = Gravity.CENTER_VERTICAL }
         head.addView(a.tv("📋 Bufer", 20f, a.cInk, true), LinearLayout.LayoutParams(0, WRAP, 1f))
-        head.addView(a.tv("⋮", 26f, a.cInk, true).apply {
-            setPadding(dp(16), dp(2), dp(4), dp(2))
-            setOnClickListener { showMenu() }
-        })
+        val menuButton: TextView = a.tv("⋮", 26f, a.cInk, true)
+        menuButton.setPadding(dp(16), dp(2), dp(4), dp(2))
+        menuButton.setOnClickListener { showMenu() }
+        head.addView(menuButton)
         p.addView(head)
         p.addView(a.gap(8))
 
