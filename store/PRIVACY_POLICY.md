@@ -1,19 +1,14 @@
 # ÖZKEY — Maxfiylik siyosati
 
-**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-09  ·  **Versiya:** 1.0.0
+**Dasturchi:** Donyor  ·  **Aloqa:** Telegram @Doniku_Admin, email donyorabdullayev892@gmail.com  ·  **Oxirgi yangilanish:** 2026-11-05  ·  **Versiya:** 0.8.2
 
 ÖZKEY — o'zbek tilidagi klaviatura ilovasi. Klaviatura siz yozgan matnni ko'radi, shuning uchun uni qanday ishlatishimiz haqida ochiq yozamiz.
 
-## Klaviatura internetga bog'liq emas
-- **Yozish, takliflar, avto-tuzatish, Bufer va mavzular to'liq telefonda ishlaydi.** Siz yozgan matn, parollar, kartalar va xabarlaringiz hech qayerga yuborilmaydi, sotilmaydi va reklama uchun ishlatilmaydi.
+## ÖZKEY internetga chiqmaydi
+- Ilovada **INTERNET ruxsati yo'q**: u hech qanday ma'lumotni internet orqali yubora ham, qabul qila ham olmaydi.
+- Yozgan matningiz, parollar, kartalar va xabarlaringiz hech qayerga yuborilmaydi, sotilmaydi va reklama uchun ishlatilmaydi.
 - Ilovada reklama va kuzatuv (analytics) SDK'lari yo'q.
 - Parol, email va havola maydonlarida avto-almashtirish va so'z o'rganish o'chirilgan.
-
-## Internet va Telegram
-- Ilovada **INTERNET ruxsati bor**, lekin faqat ixtiyoriy onlayn tarjima uchun. Server manzili ulanmagan holatda (standart) ÖZKEY internetga chiqmaydi va hech qanday serverga ma'lumot yubormaydi.
-- Tarjima yoqilgan bo'lsa, faqat tarjima rejimida yozgan yoki «Maydonni tarjima» uchun tanlagan matningiz dasturchining tarjima serveriga yuboriladi va u yerdan tarjima xizmatiga (Anthropic, Claude) uzatiladi. Server matnni saqlamaydi. Suiiste'molning oldini olish uchun server har bir IP manzildan kuniga nechta so'rov kelganini hisoblaydi (hisob 25 soatdan keyin o'chadi); matn bu hisobga yozilmaydi. Oddiy yozishdagi matnlaringiz yuborilmaydi; parol, email va havola maydonlarida tarjima o'chirilgan.
-- Majburiy obuna yo'q: Telegram kanaliga obuna bo'lmasangiz ham ÖZKEY to'liq ishlaydi.
-- «Ilova haqida» bo'limida rasmiy kanal (@OZKEY_Official) va dasturchi (@Doniku_Admin) uchun ixtiyoriy havolalar bor. Ularni bossangizgina Telegram ilovangiz ochiladi; bunda ÖZKEY hech qanday ma'lumot uzatmaydi.
 
 ## Nimalar qurilmangizda saqlanadi (faqat telefonda)
 - **Sozlamalar:** mavzu, til, o'lcham, tebranish.
@@ -23,12 +18,10 @@
 
 ## Ruxsatlar
 - **VIBRATE** — tugma bosilganda tebranish uchun.
-- **INTERNET** — faqat ixtiyoriy onlayn tarjima uchun (server ulanmagan bo'lsa ishlatilmaydi).
-- Boshqa ruxsat yo'q.
 - Galereya rasmi tizimning rasm tanlash oynasi orqali olinadi — ilova butun galereyaga kirmaydi.
 
 ## Bolalar
 - Ilova 13 yoshgacha bo'lgan bolalarning shaxsiy ma'lumotlarini ongli ravishda yig'maydi.
 
 ## O'zgarishlar
-- Siyosat o'zgarsa, shu sahifa yangilanadi (yangi internet funksiyasi qo'shilsa, avval shu yerda yoziladi). Savollar bo'lsa yuqoridagi manzillarga yozing.
+- Siyosat o'zgarsa, shu sahifa yangilanadi (masalan, kelajakda internet orqali ishlaydigan funksiya qo'shilsa, avval shu yerda yoziladi). Savollar bo'lsa yuqoridagi manzillarga yozing.

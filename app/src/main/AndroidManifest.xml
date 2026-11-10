@@ -1,7 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Faqat ixtiyoriy onlayn qism uchun (tarjima serveri / til paketlari). URL berilmasa ishlatilmaydi. -->
-    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"

@@ -4,7 +4,7 @@
 - [ ] Imzo kaliti yarating: `keytool -genkey -v -keystore ozkey.jks -alias ozkey -keyalg RSA -keysize 2048 -validity 10000` (faylni yo'qotmang!)
 - [ ] GitHub → Settings → Secrets: `OZKEY_KEYSTORE_B64` (`base64 ozkey.jks`), `OZKEY_STORE_PASSWORD`, `OZKEY_KEY_ALIAS`, `OZKEY_KEY_PASSWORD`
 - [ ] CI `.aab` beradi → Play Console'ga yuklang (APK emas, AAB talab qilinadi)
-- [x] `targetSdk` 36: Play 2026-08-31 dan yangi ilova/yangilanishlar uchun API 36 (Android 16) talab qiladi. Kelgusida talab oshsa `app/build.gradle.kts` da yangilang
+- [ ] `targetSdk` — Play joriy talabini tekshiring (hozir 35); talab oshsa `app/build.gradle.kts` da yangilang
 - [x] Sinov premium kodi 0.6.0 da olib tashlangan (barcha mavzular bepul)
 - [ ] Yangi shaxsiy akkauntlarda Play ko'pincha 12+ sinovchi bilan 14 kunlik yopiq sinov talab qiladi — Console'da tekshiring
 
@@ -13,7 +13,7 @@
 - Skrinshotlar (kamida 2): telefonda klaviatura ochilgan holda (turli mavzular, tarjima, kirill) oling
 - Qisqa tavsif (80 belgigacha): *Lotin va kirill o'zbek klaviaturasi: tarjima, mavzular, emoji*
 - **Maxfiylik siyosati (majburiy, havola kerak)** — pastdagi shablonni saytga/GitHub Pages ga joylang
-- Data safety formasi: klaviatura matn "yig'maydi". Faqat tarjima server ulangan buildda: tarjima rejimida matn tarjima uchun uzatiladi (saqlanmaydi, ixtiyoriy) — "User-generated content / Messages" ni «Shared, optional, not stored» deb belgilang; IP bo'yicha kunlik limit ham bor — maxfiylik siyosatida yozilgan
+- Data safety formasi: klaviatura matn "yig'maydi"; tarjima tugmasi bosilganda matn tarjima uchun yuboriladi (saqlanmaydi) — shuni to'g'ri belgilang
 - Klaviaturalar uchun Play "kirish qurilmasi" ogohlantirishini ko'rsatadi — bu normal
 
 ## 3. Pul topish (klaviatura uchun xavfsiz yo'llar)

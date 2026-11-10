@@ -4,8 +4,3 @@ local.properties
 *.jks
 *.keystore
 .idea/
-
-# Backend: maxfiy va vaqtinchalik fayllar (HECH QACHON commit qilinmasin)
-.dev.vars
-.env
-*.jks

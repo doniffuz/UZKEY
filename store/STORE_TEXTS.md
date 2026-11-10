@@ -1,7 +1,7 @@
-# ÖZKEY 1.0.0 — do'konlar uchun matnlar
+# ÖZKEY 0.8.2 — do'konlar uchun matnlar
 
-Versiya: **1.0.0 (versionCode 18)**, paket: `uz.ozkey.keyboard`. Kategoriya: Tools. Yosh: 3+.
-Yozish, takliflar va Bufer to'liq internetsiz ishlaydi. INTERNET ruxsati faqat ixtiyoriy onlayn tarjima uchun, majburiy obuna yo'q.
+Versiya: **0.8.2 (versionCode 13)**, paket: `uz.ozkey.keyboard`. Kategoriya: Tools. Yosh: 3+.
+Bu versiyada tarjima funksiyasi yo'q va ilova internetga chiqmaydi (INTERNET ruxsati olib tashlangan).
 
 ## Qisqa tavsif
 - **EN:** `Uzbek keyboard: word suggestions, clipboard, Latin & Cyrillic, themes`
@@ -22,7 +22,7 @@ Features:
 • 30+ themes and your own photo as keyboard background
 • Emoji, quick phrases, one-handed mode, adjustable height and letter size
 
-Privacy: the keyboard works fully offline; the internet permission is used only by the optional online translation. What you type, learned words, clipboard history and your background photo stay on your phone. No ads, no tracking. Auto-replace and word learning are disabled in password, email and URL fields.
+Privacy: the app has no internet permission. What you type, learned words, clipboard history and your background photo stay on your phone. No ads, no tracking. Auto-replace and word learning are disabled in password, email and URL fields.
 
 ## To'liq tavsif — O'zbekcha
 ÖZKEY — o'zbek tilida tez, qulay va chiroyli yozish uchun Android klaviatura.
@@ -38,7 +38,7 @@ Imkoniyatlar:
 • 30 dan ortiq mavzu va galereyadan o'z rasmingiz
 • Emoji, tez iboralar, bir qo'lda yozish rejimi, balandlik va harf o'lchamini sozlash
 
-Maxfiylik: klaviatura internetsiz ishlaydi; internet ruxsati faqat ixtiyoriy onlayn tarjima uchun. Yozganingiz, o'rganilgan so'zlar, bufer va rasm faqat telefoningizda qoladi. Reklama va kuzatuv yo'q. Parol, email va havola maydonlarida avto-almashtirish va o'rganish o'chirilgan.
+Maxfiylik: ilovada internet ruxsati yo'q. Yozganingiz, o'rganilgan so'zlar, bufer va rasm faqat telefoningizda qoladi. Reklama va kuzatuv yo'q. Parol, email va havola maydonlarida avto-almashtirish va o'rganish o'chirilgan.
 
 ## To'liq tavsif — Русский
 ÖZKEY — быстрая современная клавиатура для Android, созданная для набора на узбекском языке.
@@ -54,13 +54,13 @@ Maxfiylik: klaviatura internetsiz ishlaydi; internet ruxsati faqat ixtiyoriy onl
 • Более 30 тем и ваше фото в качестве фона
 • Эмодзи, быстрые фразы, режим одной руки, настройка высоты и размера букв
 
-Конфиденциальность: клавиатура работает без интернета; доступ в интернет нужен только для необязательного онлайн-перевода. Всё, что вы набираете, выученные слова, буфер обмена и фон остаются на телефоне. Без рекламы и слежки. В полях пароля, email и ссылок автозамена и обучение отключены.
+Конфиденциальность: у приложения нет доступа в интернет. Всё, что вы набираете, выученные слова, буфер обмена и фон остаются на телефоне. Без рекламы и слежки. В полях пароля, email и ссылок автозамена и обучение отключены.
 
-## What's new (1.0.0)
-- **EN:** `Safer auto-correct (no more changed valid words), easier access to Ğ Ö Ş Ç, clearer Enter/globe/emoji icons, clipboard fixes, clean Light/Dark look by default.`
-- **UZ:** `Xavfsizroq avto-tuzatish (to'g'ri so'zlar o'zgarmaydi), Ğ Ö Ş Ç tugmalari qulayroq, Enter/globus/emoji ikonkalari aniqroq, bufer tuzatildi, standart ko'rinish — toza Kun/Tun.`
+## What's new (0.8.2)
+- **EN:** `More accurate typing: bigger keys and tap areas, tighter spacing, faster response, better fit on any screen. Smart Touch is now off by default.`
+- **UZ:** `Yozish aniqroq: kattaroq tugmalar va bosish zonasi, kamroq bo'shliq, tezroq reaksiya, har qanday ekranga moslashadi. Smart Touch endi standart holatda o'chiq.`
 
 ## Eslatma
-- Tarjima faqat `ozkeyTranslateUrl` ulangan buildda bor. Server ulanmagan bo'lsa, skrinshot/bannerda «Tarjima» ko'rsatmang; ulangan bo'lsa — uni ixtiyoriy onlayn funksiya deb yozing.
+- Banner/skrinshotlarda «Tarjima» yozuvi bo'lmasin (bu versiyada tarjima yo'q).
 - Maxfiylik havolasi: `docs/privacy.html` ni GitHub Pages ga qo'ying.
 - Release APK faqat o'z kalitingiz bilan imzolanadi (`tools/make-keystore.sh`), hamma do'konga BITTA fayl.

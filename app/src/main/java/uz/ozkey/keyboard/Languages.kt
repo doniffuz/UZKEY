@@ -94,7 +94,6 @@ object Languages {
 
     fun installRemote(c: Context, code: String, url: String): Boolean {
         if (!url.startsWith("https://")) return false
-        if (!Regex("[A-Za-z0-9_-]{1,16}").matches(code)) return false   // yo'l almashtirishdan himoya
         val conn = URL(url).openConnection() as HttpURLConnection
         return try {
             conn.connectTimeout = 8000; conn.readTimeout = 8000
