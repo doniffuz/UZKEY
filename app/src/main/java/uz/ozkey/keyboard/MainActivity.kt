@@ -1,5 +1,7 @@
 package uz.ozkey.keyboard
 
+import java.io.FileOutputStream
+
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -577,7 +579,7 @@ class MainActivity : Activity() {
             setHintTextColor(Color.parseColor("#7186A6"))
             setTextColor(cInk)
             textSize = 17f
-            singleLine = true
+            isSingleLine = true
             background = rounded(Color.WHITE, 28).apply { setStroke(dp(1), Color.parseColor("#E0EAF6")) }
             setPadding(dp(48), dp(13), dp(48), dp(13))
             compoundDrawablePadding = dp(8)
