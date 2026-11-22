@@ -1,15 +1,6 @@
-OZKEY HOME DESIGN PATCH
+OZKEY yangi ikonka fayllari
 
-Ushbu patch mavjud OZKEY loyihasiga bosh sahifa dizaynini qo'shadi.
+Ushbu arxivdagi app/ papkasini loyihangizdagi app/ papkasi bilan birlashtiring (merge/replace).
+Almashtiriladigan fayllar: mipmap-* ichidagi ic_launcher.png va ic_launcher_round.png; drawable-nodpi ichidagi ic_launcher_foreground.png va ic_launcher_monochrome.png.
 
-Fayllarni loyiha ildiziga aynan shu papka tuzilmasi bilan ko'chiring:
-- app/src/main/java/uz/ozkey/keyboard/MainActivity.kt
-- app/src/main/res/drawable/ic_smile.xml
-- app/src/main/res/drawable/registan_silhouette.xml
-
-DIQQAT:
-1) Avval hozirgi MainActivity.kt faylidan zaxira nusxa oling.
-2) ZIP ichidagi MainActivity.kt joriy loyihadagi shu fayl o'rniga qo'yiladi.
-3) Mavjud OZKEY InputMethodService va AndroidManifest.xml ni o'chirmang.
-4) Build tekshiruvi Termux/Android SDK muhitida bajarilishi kerak.
-5) Telegram havolasi https://t.me/OZKEY_Official sifatida sozlangan.
+DIQQAT: Android 8+ adaptive ikonka XML fayllari (mipmap-anydpi-v26/ic_launcher.xml va ic_launcher_round.xml) loyihada qoladi. Ular foreground/background resurslarini qanday chaqirayotganini tekshirish kerak; agar foreground resurs nomi boshqacha bo‘lsa, moslashtiring.

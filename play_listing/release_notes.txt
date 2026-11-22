@@ -1,0 +1,1 @@
+1.0.1: ilova endi to'liq internetsiz (Internet ruxsati olib tashlandi). Maxfiy maydonlarda (parol, email, havola) takliflar va o'rganish o'chirildi. Lug'at yuklash tizimi yangilandi. Barqarorlik va xavfsizlik tuzatishlari.

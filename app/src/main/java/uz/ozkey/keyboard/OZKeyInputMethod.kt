@@ -36,6 +36,7 @@ import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -172,7 +173,8 @@ class OZKeyInputMethod : InputMethodService() {
 
     private val digits = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     private val bottomRow = listOf("?123", "🌐", "😊", "’", "space", ".", "↵")
-    private val uzBottomRow = listOf("⇧", "?123", "🌐", "😊", "’", "space", ".", "⌫", "↵")
+    // ÖZ standart QWERTY: pastki qator. Tutuq (’) — vergul tugmasini bosib turganda.
+    private val uzBottomRow = listOf("?123", "🌐", "😊", ",", "space", ".", "↵")
 
     private fun isScrollKey(k: String) =
         k.startsWith("emo:") || k.startsWith("ph:") || k.startsWith("cp:") || k.startsWith("cpin:") || k.startsWith("cdel:") ||
@@ -186,13 +188,12 @@ class OZKeyInputMethod : InputMethodService() {
     private fun lettersRows(): List<List<String>> {
         val r = lang.rows
         if (lang.code == "UZ" && lang.uzDigraph) {
-            // ÖZKEY UZ: harflar faqat 3 ta ixcham qatorga tushadi.
-            // Raqamlar alohida qatorda turmaydi — ular ?123 sahifasida.
-            // 30 ta harf tugmasi: 10 + 10 + 10.
+            // ÖZKEY UZ: standart QWERTY 10-9-7. ğ ö ş ç va tutuq — g, o, s, c, vergul tugmalarini bosib turganda (LongPress).
+            // Ikkinchi qator ikki chetdan yarim tugma bo'sh joy bilan markazlanadi, harf tugmalari hammasi teng kenglikda.
             return listOf(
                 r.getOrElse(0) { emptyList() },
-                r.getOrElse(1) { emptyList() } + listOf("ğ"),
-                r.getOrElse(2) { emptyList() } + listOf("ö", "ş", "ç")
+                listOf("half") + r.getOrElse(1) { emptyList() } + listOf("half"),
+                listOf("⇧") + r.getOrElse(2) { emptyList() } + listOf("⌫")
             )
         }
         return listOf(
@@ -305,7 +306,7 @@ class OZKeyInputMethod : InputMethodService() {
         row === sgKeys -> 34
         letters && row === lang.extra -> 46   // Boshqa tillarning qo'shimcha qatori
         row === quickRow1 || row === quickRow2 -> 40
-        else -> if (letters && lang.code == "UZ" && lang.uzDigraph) 52 else 56
+        else -> 56
     }
 
     /** Harflar sahifasining koeffitsientsiz umumiy balandligi (dp). */
@@ -345,6 +346,7 @@ class OZKeyInputMethod : InputMethodService() {
         handler.removeCallbacks(repeatDelete)
         repeatCount = 0
         pendingSpace.reset()
+        cancelLong()
         trView = null
         liveView = null
         keyboard.removeAllViews()
@@ -378,12 +380,16 @@ class OZKeyInputMethod : InputMethodService() {
         startGlow()
     }
 
+    private fun uzQwerty() = layer == Layer.LETTERS && lang.code == "UZ" && lang.uzDigraph
+
     private fun weightOf(key: String) = when {
+        key == "half" -> 0.5f
+        uzQwerty() && (key == "⇧" || key == "⌫") -> 1.5f     // 7 harf + 2 x 1.5 = 10 birlik: harf tugmalari birinchi qator bilan bir xil kenglikda
+        uzQwerty() && key == "space" -> 4.2f
         key == "space" -> if (layer == Layer.LETTERS || layer == Layer.SYMBOLS) 3.2f else 4f
         key == "?123" || key == "ABC" -> 1.5f
         key == "⇧" || key == "⌫" || key == "↵" || key == "🌐" || key == "😊" -> 1.28f
         key == "sp" -> 1.5f
-        key == "ç" && lang.uzDigraph && layer == Layer.LETTERS -> 1f   // ÖZ 30-tugmali layoutda barcha harf tugmalari teng kenglikda
         key == "cchip" -> 2.8f
         key == "ttgt" -> 3f
         key == "tboth" -> 2.2f
@@ -828,7 +834,7 @@ class OZKeyInputMethod : InputMethodService() {
     }
 
     private fun makeKey(key: String, left: String? = null, right: String? = null): View {
-        if (key == "pad" || key == "sp") return View(this)
+        if (key == "pad" || key == "sp" || key == "half") return View(this)
         if (key == "cchip" && !chipVisible()) return View(this)
         val special = isSpecialKey(key)
         val scrollish = isScrollKey(key) || key.startsWith("cat:")
@@ -909,16 +915,25 @@ class OZKeyInputMethod : InputMethodService() {
         var downX = 0f
         var downY = 0f
         var moved = false
+        var myTok = 0
+        val longVars: List<String>? =
+            if (uzQwerty() && !trMode) LongPress.variants(key) else null
         val touchView: View = if (deferred) label else cell
         touchView.setOnTouchListener { v, e ->
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX; downY = e.rawY; moved = false
+                    flushPendingLong()                // oldingi tugma hali ko'tarilmagan bo'lsa, u avval yoziladi (tartib buzilmasin)
                     // Avval harf yoziladi, keyin tebranish/rang (reaksiya tezroq)
                     if (deferred) pendingSpace.spaceDown()
                     else flushPendingSpace()          // oldin bosilgan, hali ko'tarilmagan probel avval yoziladi
                     if (scrollish || deferred) { /* ACTION_UP da */ }
                     else if (key == "⌫") { repeatCount = 0; doBackspace(); handler.postDelayed(repeatDelete, RepeatDelay.INITIAL_MS) }
+                    else if (longVars != null) {
+                        // g/o/s/c/vergul: oddiy bosish ACTION_UP da yoziladi, bosib turilsa variantlar oynasi chiqadi
+                        beginLong(longVars, cell, if (smartOk) smartPick(key, left, right, e.x, v.width) else key)
+                        myTok = lpTok
+                    }
                     else handleKey(if (smartOk) smartPick(key, left, right, e.x, v.width) else key)
                     label.alpha = 0.5f
                     if (haptic && !deferred) keyboard.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -926,10 +941,14 @@ class OZKeyInputMethod : InputMethodService() {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (Math.abs(e.rawY - downY) > dp(10) || Math.abs(e.rawX - downX) > dp(10)) moved = true
+                    if (longVars != null && lpActive && lpTok == myTok) {
+                        if (lpShown) updateLongSel(e.rawX) else if (moved) handler.removeCallbacks(lpRun)
+                    }
                 }
                 MotionEvent.ACTION_UP -> {
                     label.alpha = 1f
                     handler.removeCallbacks(repeatDelete)
+                    if (longVars != null && lpActive && lpTok == myTok) endLong()
                     if (scrollish && !moved) handleKey(key)
                     else if (deferred) {
                         val inside = e.x >= 0f && e.y >= 0f && e.x <= v.width && e.y <= v.height
@@ -942,6 +961,7 @@ class OZKeyInputMethod : InputMethodService() {
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     label.alpha = 1f
+                    if (longVars != null && lpTok == myTok) cancelLong()
                     if (deferred) pendingSpace.reset()
                     handler.removeCallbacks(repeatDelete)
                 }
@@ -1422,6 +1442,7 @@ class OZKeyInputMethod : InputMethodService() {
         animator?.cancel()
         handler.removeCallbacks(repeatDelete)
         pendingSpace.reset()
+        cancelLong()
         handler.removeCallbacks(liveRunnable)
         handler.removeCallbacks(suggestRunnable)
         WordModel.save()
@@ -1429,6 +1450,7 @@ class OZKeyInputMethod : InputMethodService() {
     }
 
     override fun onDestroy() {
+        cancelLong()
         animator?.cancel()
         handler.removeCallbacks(liveRunnable)
         handler.removeCallbacks(suggestRunnable)
@@ -1515,6 +1537,138 @@ class OZKeyInputMethod : InputMethodService() {
 
     /** Barmoq tugma CHETIGA tushsa: faqat yozilgan harf lug'atda hech qanday so'zga olib bormasa-yu,
      *  qo'shni harf olib borsagina qo'shni tanlanadi. Aniq bosilgan tugmaga xalaqit bermaydi. */
+    // ---------- uzun bosish (ğ ö ş ç) ----------
+    private var lpActive = false          // uzun bosish kutilmoqda yoki oyna ochiq
+    private var lpShown = false
+    private var lpTok = 0                 // har yangi bosishda oshadi (eski tugmaning ACTION_UP i yangisini bosib ketmasin)
+    private var lpTap = ""                // oddiy bosishda yoziladigan tugma
+    private var lpVars: List<String> = emptyList()
+    private var lpVals: List<String> = emptyList()
+    private var lpSel = 0
+    private var lpLeft = 0
+    private var lpItemW = 1
+    private var lpAnchor: View? = null
+    private var lpPopup: PopupWindow? = null
+    private var lpItems: List<TextView> = emptyList()
+    private val lpRun = Runnable { showLongPopup() }
+
+    private fun beginLong(vars: List<String>, anchor: View, tap: String) {
+        handler.removeCallbacks(lpRun)
+        lpTok++
+        lpActive = true; lpShown = false
+        lpVars = vars; lpTap = tap; lpAnchor = anchor
+        handler.postDelayed(lpRun, LongPress.DELAY_MS)
+    }
+
+    /** Boshqa tugma bosilsa, hali ko'tarilmagan uzun-bosish tugmasi avval yoziladi. */
+    private fun flushPendingLong() {
+        if (!lpActive) return
+        if (lpShown) { cancelLong(); return }
+        handler.removeCallbacks(lpRun)
+        lpActive = false
+        handleKey(lpTap)
+    }
+
+    private fun showLongPopup() {
+        val anchor = lpAnchor ?: return
+        if (!lpActive || lpShown) return
+        try {
+            val vals = lpVars.map { LongPress.cased(it, caps, capsLock) }
+            val itemW = maxOf(anchor.width, dp(48))
+            val itemH = dp(52)
+            val pad = dp(2)
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                background = GradientDrawable().apply {
+                    setColor(theme.special); cornerRadius = dp(12).toFloat(); setStroke(dp(1), theme.accent)
+                }
+                setPadding(pad, pad, pad, pad)
+            }
+            val items = vals.map { v ->
+                TextView(this).apply {
+                    text = v; textSize = 24f; gravity = Gravity.CENTER; includeFontPadding = false
+                    typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                }
+            }
+            items.forEach { row.addView(it, LinearLayout.LayoutParams(itemW, itemH)) }
+            val total = itemW * vals.size + 2 * pad
+            val loc = IntArray(2)
+            anchor.getLocationOnScreen(loc)
+            val centerX = loc[0] + anchor.width / 2
+            val screenW = resources.displayMetrics.widthPixels
+            val left = (centerX - itemW / 2 - pad).coerceIn(0, maxOf(0, screenW - total))
+            val top = maxOf(0, loc[1] - itemH - dp(10))
+            val pw = PopupWindow(row, total, itemH + 2 * pad)
+            pw.isTouchable = false
+            pw.isFocusable = false
+            pw.elevation = dp(6).toFloat()
+            pw.showAtLocation(keyboard, Gravity.NO_GRAVITY, left, top)
+            lpPopup = pw; lpItems = items; lpVals = vals
+            lpLeft = left + pad; lpItemW = itemW
+            lpSel = LongPress.indexAt(centerX.toFloat(), lpLeft, lpItemW, vals.size)
+            highlightLong()
+            lpShown = true
+            if (haptic) keyboard.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        } catch (e: Exception) {
+            lpShown = false
+            dismissLongPopup()       // oyna ochilmasa: ACTION_UP da oddiy harf yoziladi
+        }
+    }
+
+    private fun highlightLong() {
+        lpItems.forEachIndexed { i, t ->
+            val on = i == lpSel
+            t.background = if (on) GradientDrawable().apply { setColor(theme.accent); cornerRadius = dp(10).toFloat() } else null
+            t.setTextColor(if (on) Color.WHITE else theme.text)
+        }
+    }
+
+    private fun updateLongSel(rawX: Float) {
+        val i = LongPress.indexAt(rawX, lpLeft, lpItemW, lpVals.size)
+        if (i != lpSel) { lpSel = i; highlightLong() }
+    }
+
+    private fun endLong() {
+        handler.removeCallbacks(lpRun)
+        val shown = lpShown
+        val v = lpVals.getOrNull(lpSel)
+        val tap = lpTap
+        dismissLongPopup()
+        lpActive = false; lpShown = false
+        if (!shown) { handleKey(tap); return }
+        if (v == null) return
+        if (v == LongPress.APOS) handleKey(v) else commitVariant(v)
+    }
+
+    private fun cancelLong() {
+        handler.removeCallbacks(lpRun)
+        dismissLongPopup()
+        lpActive = false; lpShown = false
+    }
+
+    private fun dismissLongPopup() {
+        try { lpPopup?.dismiss() } catch (e: Exception) { /* oyna allaqachon yopilgan */ }
+        lpPopup = null
+    }
+
+    /** Variantni avto-almashtirishsiz kiritadi (ş yoki "sh", ğ yoki "gʻ" — foydalanuvchi tanlagancha). */
+    private fun commitVariant(value: String) {
+        val ic = currentInputConnection ?: return
+        pendingUndo = null
+        corr = null
+        if (trMode) {
+            stats.onType(value, trBuf.lastOrNull())
+            trBuf.append(value)
+            refreshBuf()
+        } else {
+            stats.onType(value, null)
+            ic.commitText(value, 1)
+        }
+        if (!capsLock) caps = false
+        if (caps != drawnCaps) refreshCaps()
+        if (!trMode) scheduleSuggest()
+    }
+
     private fun smartPick(key: String, left: String?, right: String?, x: Float, w: Int): String {
         if (!smartTouchOn || lang.code != "UZ" || w <= 0 || key.length != 1) return key
         val r = x / w

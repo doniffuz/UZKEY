@@ -4,8 +4,6 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 /** rows[0..2] — harf qatorlari (3-qator ⇧ va ⌫ orasiga qo'yiladi), extra — pastki qo'shimcha qator. */
 class Lang(
@@ -76,37 +74,6 @@ object Languages {
     } catch (e: Exception) { false }
 
     fun remove(c: Context, code: String) { File(dir(c), "${code.lowercase()}.json").delete() }
-
-    /** Server ro'yxati: {"packs":[{"code":"ar","name":"العربية","url":"https://.../ar.json"}]} — fon oqimida chaqiring. */
-    fun fetchRemoteIndex(): List<Triple<String, String, String>> {
-        val u = BuildConfig.PACKS_URL
-        if (!u.startsWith("https://")) return emptyList()
-        val conn = URL(u).openConnection() as HttpURLConnection
-        try {
-            conn.connectTimeout = 8000; conn.readTimeout = 8000
-            conn.instanceFollowRedirects = false
-            if (conn.responseCode != 200) return emptyList()
-            val a = JSONObject(Net.readCapped(conn.inputStream, 100_000)).getJSONArray("packs")
-            return (0 until minOf(a.length(), 50)).map {
-                val o = a.getJSONObject(it); Triple(o.getString("code"), o.getString("name").take(40), o.getString("url"))
-            }.filter { it.third.startsWith("https://") && Regex("[A-Za-z0-9_-]{1,16}").matches(it.first) }
-        } finally { conn.disconnect() }
-    }
-
-    fun installRemote(c: Context, code: String, url: String): Boolean {
-        if (!url.startsWith("https://")) return false
-        if (!Regex("[A-Za-z0-9_-]{1,16}").matches(code)) return false   // yo'l almashtirishdan himoya
-        val conn = URL(url).openConnection() as HttpURLConnection
-        return try {
-            conn.connectTimeout = 8000; conn.readTimeout = 8000
-            conn.instanceFollowRedirects = false
-            if (conn.responseCode != 200) return false
-            val text = Net.readCapped(conn.inputStream, 100_000)
-            fromJson(JSONObject(text))
-            File(dir(c), "${code.lowercase()}.json").writeText(text)
-            true
-        } catch (e: Exception) { false } finally { conn.disconnect() }
-    }
 }
 
 /** Emoji bo'limlari. Hozir tizim shrifti (Noto) ishlatiladi — Apple emoji rasmlari mualliflik huquqi bilan himoyalangan. */

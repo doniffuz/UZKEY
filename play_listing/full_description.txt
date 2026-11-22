@@ -1,0 +1,27 @@
+ÖZKEY — o'zbek tilida tez va qulay yozish uchun Android klaviatura. Ilova internetsiz ishlaydi va hech qanday ma'lumot yig'maydi.
+
+Imkoniyatlar:
+• O'zbek klaviatura: lotin va kirill yozuvi orasida tez almashish
+• Lotin ⇄ kirill konvertor: matnni kiriting yoki joylang
+• So'z takliflari va ehtiyotkor avto-tuzatish (o'rganilgan so'zlarni istalgan vaqtda o'chirishingiz mumkin)
+• Bufer: nusxalangan matnlarni saqlash, qadash, sevimlilar, toifalar va qidiruv
+• Mavzular va galereyadan o'z rasmingizni klaviatura foni qilish
+• Tezkor iboralar, emoji, matnni tuzatish
+• Tugma tovushi va vibratsiyani sozlash
+• Qo'shimcha tillar: rus, ingliz, qozoq, qirg'iz, tojik, turk, nemis
+• Statistika: yozgan so'zlaringiz va tugma bosishlaringiz soni
+
+Maxfiylik:
+• Internet ruxsati yo'q — ilova tarmoqqa chiqmaydi
+• Yozganingiz, o'rganilgan so'zlar va bufer faqat telefoningizda qoladi
+• Parol, email va havola maydonlarida takliflar va o'rganish o'chiriladi
+• Reklama yo'q
+
+Qanday yoqiladi:
+1. ÖZKEY'ni oching va «Klaviaturani yoqing» tugmasini bosing.
+2. Sozlamalarda ÖZKEY'ni yoqing.
+3. Yozish paytida klaviatura tanlagichdan ÖZKEY'ni tanlang.
+
+Telegram kanalimiz: @OZKEY_Official — yangiliklar va takliflar uchun.
+
+Kalit so'zlar: o'zbek klaviatura, o'zbekcha klaviatura, lotin kirill konvertor, tez yozish, mavzular, bufer.

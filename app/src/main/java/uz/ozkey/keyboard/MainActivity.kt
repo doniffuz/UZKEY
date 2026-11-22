@@ -243,14 +243,6 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun homeHeader(): View = ImageView(this).apply {
-        setImageResource(R.drawable.ozkey_home_header)
-        scaleType = ImageView.ScaleType.CENTER_CROP
-        adjustViewBounds = true
-        contentDescription = "ÖZKEY bosh sahifa"
-        layoutParams = LinearLayout.LayoutParams(MATCH, dp(104)).apply { bottomMargin = dp(8) }
-    }
-
     private fun topBar(): View = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(20), topInset + dp(14), dp(16), dp(10))
@@ -385,25 +377,87 @@ class MainActivity : Activity() {
 
     private fun fillSteps(h: LinearLayout, auto: Boolean, home: Boolean = false) {
         h.removeAllViews()
+
         val en = isEnabled()
         val sel = en && isSelected()
-        h.addView(statusPill(if (sel) "Faol — ÖZKEY tanlangan" else if (en) "Yoqilgan — endi tanlang" else "Hali yoqilmagan", sel))
-        h.addView(gap(10))
+
+        h.addView(statusPill(
+            if (sel) "Faol — ÖZKEY tanlangan"
+            else if (en) "Yoqilgan — endi tanlang"
+            else "Hali yoqilmagan",
+            sel
+        ))
+        h.addView(gap(12))
+
         if (!sel) {
-            h.addView(stepRow(1, "ÖZKEY klaviaturasiga ruxsat bering", en))
-            h.addView(stepRow(2, "ÖZKEY ni tanlang", sel))
-            h.addView(gap(10))
+            h.addView(stepRow(1, "ÖZKEY klaviaturasini yoqing", en))
+            h.addView(stepRow(2, "ÖZKEY'ni tanlang", sel))
+            h.addView(gap(8))
         }
+
         when {
-            !en -> h.addView(primaryBtn("Sozlamalarni ochish") { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) })
-            !sel -> h.addView(primaryBtn("Klaviaturani tanlash") { imm().showInputMethodPicker() })
-            home -> h.addView(primaryBtn("Mavzuni sozlash") { screen = "themes"; showMain() })
-            else -> h.addView(tv("✅ Hammasi tayyor! Istalgan ilovada yozishni boshlang.", 14f, cOk, true))
+            !en -> {
+                h.addView(tv(
+                    "Birinchi qadam: Android sozlamalarida ÖZKEY yonidagi tugmani yoqing.",
+                    15f, cMuted
+                ))
+                h.addView(gap(8))
+                h.addView(primaryBtn("1. KLAVIATURANI YOQISH") {
+                    startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                }.apply {
+                    textSize = 17f
+                    minHeight = dp(60)
+                    setPadding(dp(20), dp(18), dp(20), dp(18))
+                })
+            }
+
+            !sel -> {
+                h.addView(tv(
+                    "ÖZKEY yoqildi! Endi uni ishlatiladigan klaviatura sifatida tanlang.",
+                    15f, cMuted
+                ))
+                h.addView(gap(8))
+                h.addView(primaryBtn("2. ÖZKEY'NI TANLASH") {
+                    imm().showInputMethodPicker()
+                }.apply {
+                    textSize = 17f
+                    minHeight = dp(60)
+                    setPadding(dp(20), dp(18), dp(20), dp(18))
+                })
+            }
+
+            home -> {
+                h.addView(tv(
+                    "Ajoyib! ÖZKEY tayyor. Endi yozishni boshlashingiz mumkin.",
+                    15f, cOk
+                ))
+                h.addView(gap(8))
+                h.addView(primaryBtn("MAVZUNI SOZLASH") {
+                    screen = "themes"
+                    showMain()
+                }.apply {
+                    textSize = 17f
+                    minHeight = dp(60)
+                })
+            }
+
+            else -> {
+                h.addView(tv(
+                    "Hammasi tayyor! Istalgan ilovada ÖZKEY orqali yozishingiz mumkin.",
+                    16f, cOk, true
+                ))
+            }
         }
+
         if (!en || sel) pickerShown = false
+
         if (en && !sel && auto && !pickerShown) {
             pickerShown = true
-            handler.postDelayed({ if (!isFinishing) imm().showInputMethodPicker() }, 500)
+            handler.postDelayed({
+                if (!isFinishing && isEnabled() && !isSelected()) {
+                    imm().showInputMethodPicker()
+                }
+            }, 500)
         }
     }
 

@@ -37,7 +37,8 @@ object WordModel {
             c.assets.open("words_uz.txt").bufferedReader().useLines { seq ->
                 var i = 0
                 for (raw in seq) {
-                    val w = Alphabet.toNew(raw.trim().lowercase())
+                    // Format: "so'z" yoki "so'z<TAB>chastota". Fayl chastota bo'yicha kamayish tartibida (tools/build_dictionary.py).
+                    val w = Alphabet.toNew(raw.substringBefore('\t').trim().lowercase())
                     if (w.isNotEmpty() && w !in base) { base[w] = i++; dict.add(w) }
                 }
             }
@@ -45,8 +46,10 @@ object WordModel {
         try {
             c.assets.open("bigrams_uz.txt").bufferedReader().useLines { seq ->
                 for (raw in seq) {
-                    val p = Alphabet.toNew(raw.trim().lowercase()).split(' ')
-                    if (p.size == 2) bi.getOrPut(p[0]) { HashMap() }.let { it[p[1]] = (it[p[1]] ?: 0) + 3 }
+                    // Format: "w1 w2" yoki "w1 w2<TAB>soni". Soni 3..30 oralig'iga keltiriladi (shaxsiy hisobdan oshib ketmasin).
+                    val cnt = raw.substringAfter('\t', "").trim().toIntOrNull()?.coerceIn(3, 30) ?: 3
+                    val p = Alphabet.toNew(raw.substringBefore('\t').trim().lowercase()).split(' ')
+                    if (p.size == 2) bi.getOrPut(p[0]) { HashMap() }.let { it[p[1]] = (it[p[1]] ?: 0) + cnt }
                 }
             }
         } catch (e: Exception) { }

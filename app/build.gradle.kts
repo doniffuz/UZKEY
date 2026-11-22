@@ -1,3 +1,14 @@
+import java.util.Properties
+
+val ksProps = Properties()
+val ksPropsFile = rootProject.file("keystore.properties")
+if (ksPropsFile.exists()) {
+    ksPropsFile.inputStream().use { stream -> ksProps.load(stream) }
+}
+fun ksVal(prop: String, env: String): String? =
+    ksProps.getProperty(prop) ?: System.getenv(env)
+val ksFile: String? = ksVal("storeFile", "OZKEY_KEYSTORE")
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,15 +22,9 @@ android {
         applicationId = "uz.ozkey.keyboard"
         minSdk = 23
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.0.0"
+        versionCode = 19
+        versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // Tarjima serveri (backend/worker.js). gradle.properties ichida: ozkeyTranslateUrl=https://...
-        val translateUrl = ((project.findProperty("ozkeyTranslateUrl") as String?) ?: "").trim()
-        buildConfigField("String", "TRANSLATE_URL", "\"$translateUrl\"")
-        // Qo'shimcha til paketlari ro'yxati (ixtiyoriy): ozkeyPacksUrl=https://.../index.json
-        val packsUrl = ((project.findProperty("ozkeyPacksUrl") as String?) ?: "").trim()
-        buildConfigField("String", "PACKS_URL", "\"$packsUrl\"")
         // Do'kon havolasi (baho/ulashish) va qo'llab-quvvatlash havolasi (Click/Payme/Buy Me a Coffee). Bo'sh bo'lsa tugma ko'rinmaydi.
         val storeUrl = (project.findProperty("ozkeyStoreUrl") as String?) ?: ""
         buildConfigField("String", "STORE_URL", "\"$storeUrl\"")
@@ -27,15 +32,16 @@ android {
         buildConfigField("String", "SUPPORT_URL", "\"$supportUrl\"")
     }
 
-    // Release imzosi: CI sirlari (secrets) orqali beriladi (tools/make-keystore.sh ga qarang).
+    // Release imzosi: avval lokal keystore.properties (git'ga QO'SHILMAYDI), bo'lmasa CI muhit o'zgaruvchilari.
+    // Namuna: keystore.properties.example. Kalit yaratish: README_RELEASE.md.
+
     signingConfigs {
-        val ks = System.getenv("OZKEY_KEYSTORE")
-        if (ks != null) {
+        if (ksFile != null) {
             create("release") {
-                storeFile = file(ks)
-                storePassword = System.getenv("OZKEY_STORE_PASSWORD")
-                keyAlias = System.getenv("OZKEY_KEY_ALIAS")
-                keyPassword = System.getenv("OZKEY_KEY_PASSWORD")
+                storeFile = rootProject.file(ksFile)
+                storePassword = ksVal("storePassword", "OZKEY_STORE_PASSWORD")
+                keyAlias = ksVal("keyAlias", "OZKEY_KEY_ALIAS")
+                keyPassword = ksVal("keyPassword", "OZKEY_KEY_PASSWORD")
             }
         }
     }
@@ -73,10 +79,10 @@ dependencies {
 // Play Market uchun release faqat o'z kalitingiz bilan yig'iladi. Kalitsiz `bundleRelease`/`assembleRelease`
 // jimgina debug kalit bilan imzolanib, keyin Play'da rad etilmasligi uchun darhol to'xtatiladi.
 // (Android Studio "Generate Signed Bundle" kalitni o'zi beradi — u ham ruxsat etiladi.)
-val hasReleaseKey = System.getenv("OZKEY_KEYSTORE") != null ||
+val hasReleaseKey = ksFile != null ||
     project.hasProperty("android.injected.signing.store.file")
 gradle.taskGraph.whenReady {
     if (!hasReleaseKey && allTasks.any { it.name == "bundleRelease" || it.name == "assembleRelease" }) {
-        throw GradleException("Release imzo kaliti berilmagan (OZKEY_KEYSTORE, OZKEY_STORE_PASSWORD, OZKEY_KEY_ALIAS, OZKEY_KEY_PASSWORD). tools/make-keystore.sh ga qarang.")
+        throw GradleException("Release imzo kaliti berilmagan: keystore.properties yarating (keystore.properties.example ga qarang) yoki OZKEY_* muhit o'zgaruvchilarini bering.")
     }
 }

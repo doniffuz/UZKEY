@@ -15,3 +15,8 @@ local.properties
 *.b64
 keystore.properties
 signing.properties
+
+# Debug/test uchun
+*.aab
+*.apk
+tools/__pycache__/
