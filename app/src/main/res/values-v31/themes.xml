@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ tizim splash: to'q ko'k fon + ÖZKEY belgisi -->
+    <style name="Theme.OZKey" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window</item>
+        <item name="android:colorBackground">@color/ozkey_bg</item>
+        <item name="android:colorAccent">@color/ozkey_accent</item>
+        <item name="android:statusBarColor">@color/ozkey_bg</item>
+        <item name="android:navigationBarColor">@color/ozkey_bg</item>
+        <item name="android:textColorPrimary">@color/ozkey_text</item>
+        <item name="android:textColorSecondary">@color/ozkey_muted</item>
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>
