@@ -51,6 +51,17 @@ jobs:
       - name: JVM unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      - name: Kotlin compilation diagnostics
+        run: |
+          set +e
+          ./gradlew :app:compileDebugKotlin --stacktrace 2>&1 | tee kotlin-error.log
+          code=${PIPESTATUS[0]}
+          echo ""
+          echo "===== KOTLIN ERRORS ====="
+          grep -nE "e: |error:|ERROR|Compilation error" kotlin-error.log || true
+          echo "===== END KOTLIN ERRORS ====="
+          exit $code
+
       - name: Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
