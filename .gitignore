@@ -20,3 +20,4 @@ signing.properties
 *.aab
 *.apk
 tools/__pycache__/
+.kotlin/
