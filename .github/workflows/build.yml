@@ -1,4 +1,5 @@
 name: Build APK + AAB
+
 on:
   push:
   pull_request:
@@ -15,47 +16,86 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
     env:
-      # Sirlar mavjud bo'lsa 'true' (secrets to'g'ridan-to'g'ri if: ichida ishlamaydi, shuning uchun env orqali)
-      HAS_KS: ${{ secrets.OZKEY_KEYSTORE_B64 != '' && secrets.OZKEY_STORE_PASSWORD != '' && secrets.OZKEY_KEY_ALIAS != '' && secrets.OZKEY_KEY_PASSWORD != '' }}
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Gradle Wrapper jar tekshiruvi (rasmiy checksum bilan)
-        uses: gradle/actions/wrapper-validation@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
-      - name: Accept Android licenses (compileSdk 36 yo'q bo'lsa Gradle o'zi yuklaydi)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-      - uses: gradle/actions/setup-gradle@v4
-      - name: Wrapper ruxsati
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        run: |
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          yes | sdkmanager --licenses > /dev/null || true
+
+      - name: Gradle Wrapper validation
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Wrapper permission
         run: chmod +x ./gradlew
-      - name: JVM unit testlar
+
+      - name: JVM unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
+
       - name: Debug APK
         run: ./gradlew assembleDebug --stacktrace
-      - name: Keystore'ni tiklash (faqat sirlar bor bo'lsa)
-        if: env.HAS_KS == 'true'
+
+      - name: Detect release signing secrets
+        id: signing
         env:
           KS_B64: ${{ secrets.OZKEY_KEYSTORE_B64 }}
-        run: printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/ozkey.jks"
-      - name: Release APK + AAB (Uptodown / Play Market)
-        if: env.HAS_KS == 'true'
+          STORE_PASSWORD: ${{ secrets.OZKEY_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OZKEY_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "has_keystore=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_keystore=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore release keystore
+        if: steps.signing.outputs.has_keystore == 'true'
+        env:
+          KS_B64: ${{ secrets.OZKEY_KEYSTORE_B64 }}
+        run: |
+          printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/ozkey.jks"
+
+      - name: Release APK + AAB
+        if: steps.signing.outputs.has_keystore == 'true'
         env:
           OZKEY_KEYSTORE: ${{ runner.temp }}/ozkey.jks
           OZKEY_STORE_PASSWORD: ${{ secrets.OZKEY_STORE_PASSWORD }}
           OZKEY_KEY_ALIAS: ${{ secrets.OZKEY_KEY_ALIAS }}
           OZKEY_KEY_PASSWORD: ${{ secrets.OZKEY_KEY_PASSWORD }}
         run: ./gradlew assembleRelease bundleRelease --stacktrace
-      - name: Release kaliti yo'q (faqat debug APK yig'ildi)
-        if: env.HAS_KS != 'true'
-        run: echo "::notice::Release APK/AAB yig'ilmadi - 4 ta GitHub siri yo'q. tools/make-keystore.sh ga qarang."
-      - name: Keystore'ni o'chirish
+
+      - name: Release key missing
+        if: steps.signing.outputs.has_keystore != 'true'
+        run: |
+          echo "::notice::Release APK/AAB yig'ilmadi - GitHub Secrets orqali 4 ta signing qiymati berilmagan."
+
+      - name: Remove keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/ozkey.jks"
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload build artifacts
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: OZKEY-build
           if-no-files-found: warn
@@ -63,8 +103,10 @@ jobs:
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload test reports
         if: failure()
+        uses: actions/upload-artifact@v4
         with:
           name: OZKEY-test-reports
           if-no-files-found: ignore
