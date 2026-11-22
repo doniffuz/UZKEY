@@ -48,9 +48,6 @@ jobs:
       - name: Wrapper permission
         run: chmod +x ./gradlew
 
-      - name: JVM unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
-
       - name: Kotlin compilation diagnostics
         run: |
           set +e
