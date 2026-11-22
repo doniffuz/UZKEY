@@ -51,11 +51,13 @@ jobs:
       - name: Kotlin compilation diagnostics
         run: |
           set +e
-          ./gradlew :app:compileDebugKotlin --stacktrace 2>&1 | tee kotlin-error.log
+          ./gradlew :app:compileDebugKotlin --info --stacktrace 2>&1 | tee kotlin-error.log
           code=${PIPESTATUS[0]}
           echo ""
           echo "===== KOTLIN ERRORS ====="
-          grep -nE "e: |error:|ERROR|Compilation error" kotlin-error.log || true
+          grep -nE "e: |error:|ERROR|Compilation error|Unresolved reference|Type mismatch|Expecting|Cannot access|No value passed|Argument type mismatch" kotlin-error.log || true
+          echo "===== LAST 200 LINES ====="
+          tail -n 200 kotlin-error.log
           echo "===== END KOTLIN ERRORS ====="
           exit $code
 
