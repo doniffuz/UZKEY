@@ -1,7 +1,5 @@
 package uz.ozkey.keyboard
 
-import java.io.FileOutputStream
-
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -36,6 +34,7 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import java.io.FileOutputStream
 
 /**
  * ÖZKEY — sozlash ilovasi. Premium dizayn tizimi: deep navy fon, electric blue/cyan aksent, yumaloq kartalar,
@@ -357,7 +356,11 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        stepsHolder?.let { fillSteps(it, auto = true, home = screen == null && onboarded()) }
+        if (::root.isInitialized && screen == null && tab == 0 && onboarded()) {
+            showMain() // Android sozlamalaridan qaytganda klaviatura holatini yangilash
+        } else {
+            stepsHolder?.let { fillSteps(it, auto = true, home = screen == null && onboarded()) }
+        }
     }
 
     private fun onboarded() = prefs().getBoolean("onboarded", false)
@@ -485,13 +488,16 @@ class MainActivity : Activity() {
         stepsHolder = null
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val sc = screen
-        val title = when (sc) { "settings" -> "Sozlamalar"; "themes" -> "Mavzu tanlash"; "bufer" -> "Clipboard"; "lang" -> "Til / Layout"; else -> "" }
-        col.addView(if (sc == null && tab == 0) homeHeader() else if (sc == null) topBar() else subBar(title))
+        val title = when (sc) { "settings" -> "Sozlamalar"; "themes" -> "Mavzu tanlash"; "bufer" -> "Clipboard"; "lang" -> "Til / Layout"; "emoji" -> "Emoji"; "help" -> "Yordam"; "converter" -> "Konvertor"; else -> "" }
+        col.addView(if (sc == null && tab == 0) View(this).apply { layoutParams = LinearLayout.LayoutParams(MATCH, 0) } else if (sc == null) topBar() else subBar(title))
         val page = when (sc) {
             "settings" -> settingsTab()
             "themes" -> themesTab()
             "bufer" -> bufer.build()
             "lang" -> langTab()
+            "emoji" -> emojiTab()
+            "help" -> helpTab()
+            "converter" -> converterTab()
             else -> when (tab) { 0 -> homeTab(); 1 -> statsTab(); else -> aboutTab() }
         }
         col.addView(scrollOf(page), LinearLayout.LayoutParams(MATCH, 0, 1f))
@@ -504,26 +510,30 @@ class MainActivity : Activity() {
         val bar = LinearLayout(this).apply {
             background = rounded(Color.WHITE, 30).apply { setStroke(dp(1), cLine) }
             setPadding(dp(6), dp(5), dp(6), dp(5))
-            glow(this, 8)
+            glow(this, 4)
         }
         val tabs = listOf(
             Triple(R.drawable.ic_home, "Bosh", 0),
-            Triple(R.drawable.ic_palette, "Mavzular", 1),
+            Triple(R.drawable.ic_chart, "Statistika", 1),
             Triple(R.drawable.ic_clipboard, "Bufer", 2),
-            Triple(R.drawable.ic_gear, "Sozlama", 3)
+            Triple(R.drawable.ic_gear, "Sozlamalar", 3)
         )
         tabs.forEach { (ic, name, i) ->
-            val on = (i == 0 && tab == 0) || (i == 1 && screen == "themes") || (i == 2 && screen == "bufer") || (i == 3 && screen == "settings")
+            val on = (i == 0 && screen == null && tab == 0) ||
+                (i == 1 && screen == null && tab == 1) ||
+                (i == 2 && screen == "bufer") || (i == 3 && screen == "settings")
             bar.addView(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
-                setPadding(0, dp(6), 0, dp(5))
-                background = if (on) GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.parseColor("#11A8E8"), Color.parseColor("#006ED8"))).apply { cornerRadius = dp(26).toFloat() } else null
-                addView(icon(ic, 23, if (on) Color.WHITE else Color.parseColor("#234B80")))
+                minimumHeight = dp(58)
+                setPadding(dp(2), dp(6), dp(2), dp(5))
+                background = if (on) GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(Color.parseColor("#1685FF"), Color.parseColor("#0B3D91"))).apply { cornerRadius = dp(26).toFloat() } else null
+                addView(icon(ic, 22, if (on) Color.WHITE else Color.parseColor("#0B3D91")))
                 addView(tv(name, 11.5f, if (on) Color.WHITE else cInk, true).apply { setPadding(0, dp(2), 0, 0) })
                 setOnClickListener {
                     when (i) {
                         0 -> { screen = null; tab = 0; showMain() }
-                        1 -> { screen = "themes"; showMain() }
+                        1 -> { screen = null; tab = 1; showMain() }
                         2 -> { screen = "bufer"; showMain() }
                         3 -> { screen = "settings"; showMain() }
                     }
@@ -571,119 +581,215 @@ class MainActivity : Activity() {
     }
 
     private fun homeTab(): View {
-        val p = pageBox().apply { setPadding(dp(16), dp(4), dp(16), dp(24)) }
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(12), dp(20), dp(24))
+        }
+        page.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.parseColor("#DCEBFF"), Color.parseColor("#F4F8FF")))
 
-        // Search field — reference design
-        val search = EditText(this).apply {
-            hint = "Shu yerga yozib ko‘ring..."
-            setHintTextColor(Color.parseColor("#7186A6"))
-            setTextColor(cInk)
-            textSize = 17f
-            isSingleLine = true
-            background = rounded(Color.WHITE, 28).apply { setStroke(dp(1), Color.parseColor("#E0EAF6")) }
-            setPadding(dp(48), dp(13), dp(48), dp(13))
-            compoundDrawablePadding = dp(8)
-            setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_search, 0, android.R.drawable.ic_btn_speak_now, 0)
+        // Header: blue premium block with a subtle Uzbek flag ribbon.
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.parseColor("#0B3D91"), Color.parseColor("#1565FF"))).apply { cornerRadius = dp(24).toFloat() }
+            setPadding(dp(16), topInset + dp(12), dp(16), dp(18))
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(14) }
+        }
+        header.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(View(this@MainActivity).apply { background = rounded(Color.parseColor("#1685FF"), 2); layoutParams = LinearLayout.LayoutParams(dp(22), dp(4)) })
+            addView(View(this@MainActivity).apply { background = rounded(Color.WHITE, 2); layoutParams = LinearLayout.LayoutParams(dp(22), dp(4)) })
+            addView(View(this@MainActivity).apply { background = rounded(Color.parseColor("#1FA855"), 2); layoutParams = LinearLayout.LayoutParams(dp(22), dp(4)) })
+            addView(View(this@MainActivity), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(primaryBtn("↗  Ulashish") { shareApp() }.apply {
+                textSize = 13f; background = rounded(Color.argb(38, 255, 255, 255), 22)
+                setTextColor(Color.WHITE); setPadding(dp(14), dp(8), dp(14), dp(8))
+            })
+        })
+        header.addView(gap(12))
+        header.addView(LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(logo(64))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0)
+                addView(tv("ÖZKEY", 28f, Color.WHITE, true))
+                addView(tv("O'zbek klaviaturasi", 15f, Color.WHITE))
+            }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        })
+        page.addView(header)
+
+        // Single keyboard test field.
+        val inputWrap = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = rounded(Color.WHITE, 24).apply { setStroke(dp(1), Color.parseColor("#D8E7FA")) }
+            setPadding(dp(14), 0, dp(12), 0)
             layoutParams = LinearLayout.LayoutParams(MATCH, dp(58)).apply { bottomMargin = dp(14) }
         }
-        p.addView(search)
-
-        // Converter card
-        val converter = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = rounded(Color.WHITE, 26).apply { setStroke(dp(1), Color.parseColor("#DDE8F5")) }
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(18) }
+        inputWrap.addView(tv("✎", 25f, Color.parseColor("#1565FF"), true))
+        val testInput = EditText(this).apply {
+            hint = "Matnni kiriting..."; textSize = 16f; setTextColor(cInk)
+            setHintTextColor(Color.parseColor("#8295B3")); isSingleLine = true
+            background = null; setPadding(dp(12), dp(8), dp(8), dp(8))
         }
-        val ct = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        ct.addView(FrameLayout(this@MainActivity).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#10B8F4"), Color.parseColor("#0877D8"))).apply { cornerRadius = dp(22).toFloat() }
-            addView(tv("↔", 30f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-            layoutParams = LinearLayout.LayoutParams(dp(74), dp(74))
+        inputWrap.addView(testInput, LinearLayout.LayoutParams(0, MATCH, 1f))
+        inputWrap.addView(TextView(this).apply {
+            text = "×"; textSize = 25f; gravity = Gravity.CENTER; setTextColor(Color.parseColor("#8295B3"))
+            setOnClickListener { testInput.text?.clear() }
+            contentDescription = "Matnni tozalash"
+        }, LinearLayout.LayoutParams(dp(34), dp(44)))
+        page.addView(inputWrap)
+
+        // Live keyboard state card, refreshed when returning from Android settings.
+        val enabled = isEnabled()
+        val selected = isSelected()
+        val statusCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            background = rounded(if (enabled && selected) Color.parseColor("#1FA855") else Color.parseColor("#F39A22"), 24)
+            setPadding(dp(16), dp(14), dp(14), dp(14))
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(16) }
+        }
+        statusCard.addView(FrameLayout(this).apply {
+            addView(tv("⌨", 28f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+            if (enabled && selected) addView(tv("✓", 11f, Color.parseColor("#1FA855"), true).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
+                setPadding(dp(3), 0, dp(3), 0)
+            }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.BOTTOM or Gravity.END))
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
         })
-        val ctext = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, 0, 0) }
-        ctext.addView(tv("Lotin ⇄ Kirill konvertor", 21f, cInk, true))
-        ctext.addView(tv("Matnni kiriting, yoki joylang", 14f, Color.parseColor("#617796")).apply { setPadding(0, dp(4), 0, 0) })
-        ct.addView(ctext, LinearLayout.LayoutParams(0, WRAP, 1f))
-        ct.addView(tv("›", 40f, Color.parseColor("#176BD1"), false))
-        converter.addView(ct)
-        converter.addView(gap(12))
-        val input = field("Matnni kiriting yoki joylang").apply {
-            background = rounded(Color.parseColor("#F5F8FD"), 18).apply { setStroke(dp(1), Color.parseColor("#E0E9F5")) }
-        }
-        converter.addView(input)
-        converter.addView(gap(10))
-        val out = tv("", 15f, cInk).apply { setTextIsSelectable(true); setPadding(dp(4), dp(5), dp(4), dp(5)) }
-        fun convBtn(label: String, bg: Int, f: (String) -> String) = TextView(this).apply {
-            text = label; textSize = 14f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; typeface = Typeface.DEFAULT_BOLD
-            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.argb(255, Color.red(bg), Color.green(bg), Color.blue(bg)), bg)).apply { cornerRadius = dp(24).toFloat() }
-            setPadding(dp(8), dp(11), dp(8), dp(11))
-            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(6) }
-            setOnClickListener { out.text = f(input.text.toString()) }
-        }
-        converter.addView(LinearLayout(this).apply {
-            addView(convBtn("→ Lotin", Color.parseColor("#078FEA")) { Alphabet.toStandard(Script.cyrToLat(it)) })
-            addView(convBtn("→ O‘Z", Color.parseColor("#09C95C")) { Alphabet.toNew(Script.cyrToLat(it)) })
-            addView(convBtn("→ Кирилл", Color.parseColor("#7B32E8")) { Script.latToCyr(it) })
+        val statusText = when { enabled && selected -> "Klaviatura yoqilgan"; enabled -> "Klaviaturani tanlang"; else -> "Klaviaturani yoqing" }
+        statusCard.addView(tv(statusText, 16f, Color.WHITE, true).apply { setPadding(dp(12), 0, dp(8), 0) },
+            LinearLayout.LayoutParams(0, WRAP, 1f))
+        val actionText = when { enabled && selected -> "Sozlamalar"; enabled -> "Tanlash"; else -> "Yoqish" }
+        statusCard.addView(primaryBtn(actionText) {
+            when { !enabled -> startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)); enabled && !selected -> imm().showInputMethodPicker(); else -> { screen = "settings"; showMain() } }
+        }.apply {
+            textSize = 13f; background = rounded(Color.WHITE, 22); setTextColor(Color.parseColor("#0B3D91"))
+            setPadding(dp(13), dp(10), dp(13), dp(10))
         })
-        converter.addView(out)
-        p.addView(converter)
+        page.addView(statusCard)
 
-        // Main features
-        val sectionRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(2), dp(4), dp(8)) }
-        sectionRow.addView(tv("▦", 28f, Color.parseColor("#087FD8"), true))
-        sectionRow.addView(tv("Asosiy imkoniyatlar", 20f, cInk, true).apply { setPadding(dp(10), 0, 0, 0) }, LinearLayout.LayoutParams(0, WRAP, 1f))
-        sectionRow.addView(tv("Barchasi  ›", 15f, Color.parseColor("#075CC4"), true))
-        p.addView(sectionRow)
-
-        fun featureCard(iconText: String, title: String, sub: String, color: Int, click: () -> Unit): View {
-            return LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                background = rounded(Color.WHITE, 22).apply { setStroke(dp(1), Color.parseColor("#DDE8F5")) }
-                setPadding(dp(14), dp(13), dp(12), dp(13))
-                setOnClickListener { click() }
-                addView(FrameLayout(this@MainActivity).apply {
-                    background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.argb(255, Color.red(color), Color.green(color), Color.blue(color)), color)).apply { cornerRadius = dp(18).toFloat() }
-                    addView(tv(iconText, 24f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-                    layoutParams = LinearLayout.LayoutParams(dp(54), dp(54))
-                })
-                val tx = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(4), 0) }
-                tx.addView(tv(title, 15.5f, cInk, true))
-                tx.addView(tv(sub, 11.5f, Color.parseColor("#6D809E")).apply { setPadding(0, dp(2), 0, 0) })
-                addView(tx, LinearLayout.LayoutParams(0, WRAP, 1f))
-                addView(tv("›", 30f, Color.parseColor("#4A6383")))
-            }
+        // Six evenly sized feature cards, in a two-column grid.
+        fun feature(iconRes: Int, title: String, subtitle: String? = null, click: () -> Unit): View = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            background = rounded(Color.WHITE, 22).apply { setStroke(dp(1), Color.parseColor("#DDE9F8")) }
+            elevation = dp(3).toFloat(); setPadding(dp(12), dp(13), dp(10), dp(13))
+            minimumHeight = dp(82)
+            addView(icon(iconRes, 26, Color.parseColor("#1565FF")))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(2), 0)
+                addView(tv(title, 14f, Color.parseColor("#0B3D91"), true).apply { maxLines = 2 })
+                if (subtitle != null) addView(tv(subtitle, 14f, Color.parseColor("#7186A6")).apply { setPadding(0, dp(3), 0, 0) })
+            }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            addView(tv("›", 27f, Color.parseColor("#0B3D91"), true))
+            setOnClickListener { click() }
+            contentDescription = title
         }
-        val grid1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 0, 0, dp(10)) }
-        grid1.addView(featureCard("⌨", "Klaviatura", "Sozlamalar va uslublar", Color.parseColor("#0B9FEA")) { screen = "settings"; showMain() }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(6) })
-        grid1.addView(featureCard("▣", "Bufer", "Matnni saqlash", Color.parseColor("#08C95A")) { screen = "bufer"; showMain() }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(6) })
-        p.addView(grid1)
-        val grid2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 0, 0, dp(14)) }
-        grid2.addView(featureCard("⚙", "Sozlama", "Ilova sozlamalari", Color.parseColor("#7A2FE6")) { screen = "settings"; showMain() }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(6) })
-        grid2.addView(featureCard("?", "Yordam", "Qanday ishlatiladi?", Color.parseColor("#FF8A1C")) { toast("ÖZKEY yordam: Sozlama bo‘limidan klaviaturani yoqing va tanlang.") }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(6) })
-        p.addView(grid2)
+        fun gridRow(left: View, right: View): View = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(left, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(6) })
+            addView(right, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(6) })
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(12) }
+        }
+        page.addView(gridRow(
+            feature(R.drawable.ic_globe, "Konvertor", "Lotin ⇄ Kirill") { screen = "converter"; showMain() },
+            feature(R.drawable.ic_smile, "Emoji") { screen = "emoji"; showMain() }
+        ))
+        page.addView(gridRow(
+            feature(R.drawable.ic_palette, "Mavzular") { screen = "themes"; showMain() },
+            feature(R.drawable.ic_bulb, "Yordam") { screen = "help"; showMain() }
+        ))
+        page.addView(gridRow(
+            feature(R.drawable.ic_send, "Telegram kanalimiz  ✓") { openUrl("https://t.me/OZKEY_Official") },
+            feature(R.drawable.ic_info, "Ilova haqida") { screen = null; tab = 2; showMain() }
+        ))
 
-        // Help banner
-        val banner = LinearLayout(this).apply {
+        val tip = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor("#0578C9"), Color.parseColor("#12A9F2"))).apply { cornerRadius = dp(25).toFloat() }
-            setPadding(dp(18), dp(15), dp(12), dp(15))
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(4) }
+            background = rounded(Color.parseColor("#EAF3FF"), 22).apply { setStroke(dp(1), Color.parseColor("#D3E5FC")) }
+            setPadding(dp(14), dp(13), dp(12), dp(13))
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(2); bottomMargin = dp(8) }
         }
-        val bt = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        bt.addView(tv("♥  ÖZKEY sizga yordam beradi!", 17f, Color.WHITE, true))
-        bt.addView(tv("Ilova bepul va reklamasiz. Do‘stlaringizga ulashing!", 11.5f, Color.WHITE).apply { setPadding(0, dp(4), 0, 0) })
-        banner.addView(bt, LinearLayout.LayoutParams(0, WRAP, 1f))
-        banner.addView(primaryBtn("↗  Ulashish") { shareApp() }.apply {
-            background = rounded(Color.WHITE, 24); setTextColor(cInk); setPadding(dp(14), dp(10), dp(14), dp(10))
+        tip.addView(tv("♧", 24f, Color.parseColor("#1565FF"), true))
+        tip.addView(tv("Maslahat: tez yozish usullari", 14f, Color.parseColor("#0B3D91"), true).apply { setPadding(dp(10), 0, dp(6), 0) },
+            LinearLayout.LayoutParams(0, WRAP, 1f))
+        tip.addView(primaryBtn("Ko'rish") { screen = "help"; showMain() }.apply {
+            textSize = 13f; background = rounded(Color.parseColor("#1565FF"), 20); setPadding(dp(13), dp(9), dp(13), dp(9))
         })
-        p.addView(banner)
+        page.addView(tip)
+        return page
+    }
 
-        p.addView(primaryBtn("📦  APKni do‘stlarga ulashish") { shareApp() }.apply {
-            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.parseColor("#09C85A"), Color.parseColor("#00A94F"))).apply { cornerRadius = dp(28).toFloat() }
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = -dp(2); bottomMargin = dp(16) }
-            textSize = 16f
+
+    private fun emojiTab(): View {
+        val p = pageBox()
+        p.addView(tv("Kerakli emojini tanlang", 16f, cInk, true))
+        p.addView(gap(12))
+        val emojis = listOf("😀","😃","😄","😁","😆","😊","😍","🥰","😎","🤔","👍","👎","👏","🙏","❤️","🔥","🎉","🇺🇿")
+        val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        emojis.chunked(4).forEach { group ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            group.forEach { value ->
+                val emojiButton = primaryBtn(value) {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("emoji", value))
+                    toast("Nusxalandi: $value")
+                }.apply {
+                    textSize = 25f; background = rounded(Color.WHITE, 16); setTextColor(cInk)
+                    layoutParams = LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }
+                }
+                row.addView(emojiButton)
+            }
+            rows.addView(row)
+        }
+        p.addView(rows)
+        return p
+    }
+
+    private fun converterTab(): View {
+        val p = pageBox()
+        p.addView(tv("Matnni kiriting...", 16f, cInk, true))
+        p.addView(gap(8))
+        val input = field("Matnni kiriting...").apply { minLines = 3; gravity = Gravity.TOP; background = rounded(Color.WHITE, 18) }
+        p.addView(input)
+        p.addView(gap(10))
+        val output = tv("Natija shu yerda ko'rinadi", 15f, cInk).apply {
+            background = rounded(Color.WHITE, 18); setPadding(dp(14), dp(14), dp(14), dp(14)); setTextIsSelectable(true)
+        }
+        fun action(label: String, transform: (String) -> String) = primaryBtn(label) {
+            output.text = transform(input.text.toString())
+        }.apply {
+            textSize = 13f; background = rounded(Color.parseColor("#1565FF"), 18)
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f).apply { setMargins(dp(3), 0, dp(3), 0) }
+        }
+        p.addView(LinearLayout(this).apply {
+            addView(action("Lotin ⇄ Kirill") { value -> Script.latToCyr(value) })
+            addView(action("Kirill → Lotin") { value -> Alphabet.toStandard(Script.cyrToLat(value)) })
         })
+        p.addView(gap(10)); p.addView(output)
+        p.addView(gap(8))
+        p.addView(outlineBtn("Natijani nusxalash") {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("ÖZKEY", output.text)); toast("Nusxalandi")
+        })
+        return p
+    }
+
+    private fun helpTab(): View {
+        val p = pageBox()
+        p.addView(tv("ÖZKEY'dan foydalanish", 19f, cInk, true))
+        p.addView(gap(10))
+        listOf(
+            "1. Klaviaturani yoqing — Android sozlamalaridan ÖZKEY'ni faollashtiring.",
+            "2. ÖZKEY'ni tanlang — matn maydonida klaviatura tanlash tugmasini bosing.",
+            "3. Maxsus harflar — Ğ, Ö, Ş va Ç harflaridan foydalaning.",
+            "4. Bufer — nusxalangan matnlarni saqlang va qayta ishlating.",
+            "5. Mavzular — klaviatura ko'rinishini o'zingizga moslang."
+        ).forEach { item ->
+            p.addView(tv(item, 14f, cInk).apply { background = rounded(Color.WHITE, 16); setPadding(dp(14), dp(13), dp(14), dp(13)) })
+            p.addView(gap(8))
+        }
         return p
     }
 
